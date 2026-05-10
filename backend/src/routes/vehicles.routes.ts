@@ -10,9 +10,10 @@ const upload = multer({ storage: multer.memoryStorage() });
 // GET all vehicles (public - for landing page filtering)
 router.get('/', async (req, res) => {
   try {
-    const snap = await db.collection('vehicles').orderBy('createdAt', 'desc').get();
-    const vehicles = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    res.json(vehicles);
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
+    const base = db.collection('vehicles').orderBy('createdAt', 'desc');
+    const snap = await (limit ? base.limit(limit) : base).get();
+    res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

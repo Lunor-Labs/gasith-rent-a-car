@@ -14,18 +14,15 @@ const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(auth.currentUser);
-  const [loading, setLoading] = useState(true);
-
-  console.log('[AuthProvider] render — user:', user?.email ?? null, '| loading:', loading);
+  // If Firebase already has a cached user synchronously, skip the loading state entirely
+  const [loading, setLoading] = useState(!auth.currentUser);
 
   useEffect(() => {
-    console.log('[AuthProvider] mount — auth.currentUser:', auth.currentUser?.email ?? null);
     const unsub = onAuthStateChanged(auth, (u) => {
-      console.log('[AuthProvider] onAuthStateChanged —', u?.email ?? 'null');
       setUser(u);
       setLoading(false);
     });
-    return () => { console.log('[AuthProvider] unmount'); unsub(); };
+    return unsub;
   }, []);
 
   const login = async (email: string, password: string) => {

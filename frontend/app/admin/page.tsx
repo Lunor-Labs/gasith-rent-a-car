@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { getDashboardStats, getRevenueStats, getBookings, getVehicles, getCustomers } from '@/lib/api';
+import { getDashboardStats, getRevenueStats, getBookings, getVehicles } from '@/lib/api';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend
@@ -56,12 +56,12 @@ export default function DashboardPage() {
 
   useEffect(() => {
     Promise.allSettled([
-      getDashboardStats(), getRevenueStats(), getBookings(), getCustomers(), getVehicles()
-    ]).then(([s, r, b, , v]) => {
+      getDashboardStats(), getRevenueStats(), getBookings({ limit: 8 }), getVehicles({ limit: 6 })
+    ]).then(([s, r, b, v]) => {
       if (s.status === 'fulfilled') setStats(s.value.data);
       if (r.status === 'fulfilled') setRevenue([...r.value.data].reverse());
-      if (b.status === 'fulfilled') setBookings(b.value.data.slice(0, 8));
-      if (v.status === 'fulfilled') setVehicles(v.value.data.slice(0, 6));
+      if (b.status === 'fulfilled') setBookings(b.value.data);
+      if (v.status === 'fulfilled') setVehicles(v.value.data);
     }).finally(() => setLoading(false));
   }, []);
 

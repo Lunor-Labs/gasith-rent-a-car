@@ -8,7 +8,9 @@ const router = Router();
 // GET all bookings
 router.get('/', authMiddleware, async (req, res) => {
   try {
-    const snap = await db.collection('bookings').orderBy('createdAt', 'desc').get();
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
+    const base = db.collection('bookings').orderBy('createdAt', 'desc');
+    const snap = await (limit ? base.limit(limit) : base).get();
     res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -205,15 +207,15 @@ router.get('/stats/revenue', authMiddleware, async (req, res) => {
 // GET dashboard stats
 router.get('/stats/dashboard', authMiddleware, async (req, res) => {
   try {
-    const [activeSnap, totalSnap, customerSnap, vehicleSnap] = await Promise.all([
+    const monthKey = format(new Date(), 'yyyy-MM');
+    const [activeSnap, totalSnap, customerSnap, vehicleSnap, revDoc] = await Promise.all([
       db.collection('bookings').where('status', '==', 'active').get(),
       db.collection('bookings').get(),
       db.collection('customers').get(),
       db.collection('vehicles').get(),
+      db.collection('revenue').doc(monthKey).get(),
     ]);
 
-    const monthKey = format(new Date(), 'yyyy-MM');
-    const revDoc = await db.collection('revenue').doc(monthKey).get();
     const monthRevenue = revDoc.exists ? revDoc.data()!.totalRevenue : 0;
 
     res.json({

@@ -17,7 +17,7 @@ API.interceptors.request.use(async (config) => {
 export default API;
 
 // ─── Vehicles ────────────────────────────────────────────────────────────────
-export const getVehicles = () => API.get('/vehicles');
+export const getVehicles = (params?: { limit?: number }) => API.get('/vehicles', { params });
 export const getLandingVehicles = () => API.get('/vehicles/landing');
 export const getVehicle = (id: string) => API.get(`/vehicles/${id}`);
 export const createVehicle = (data: FormData) => API.post('/vehicles', data, { headers: { 'Content-Type': 'multipart/form-data' } });
@@ -34,7 +34,7 @@ export const deleteCustomer = (id: string) => API.delete(`/customers/${id}`);
 export const getCustomerBookings = (id: string) => API.get(`/customers/${id}/bookings`);
 
 // ─── Bookings ─────────────────────────────────────────────────────────────────
-export const getBookings = () => API.get('/bookings');
+export const getBookings = (params?: { limit?: number }) => API.get('/bookings', { params });
 export const getBooking = (id: string) => API.get(`/bookings/${id}`);
 export const createBooking = (data: any) => API.post('/bookings', data);
 export const completeBooking = (id: string, data: any) => API.put(`/bookings/${id}/complete`, data);
