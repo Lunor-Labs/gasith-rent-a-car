@@ -10,6 +10,11 @@ export const metadata: Metadata = {
   title: 'Gasith Rent a Car – Premium Vehicle Rental in Sri Lanka',
   description: 'Rent premium vehicles in Sri Lanka with ease. Affordable rates, reliable service, island-wide coverage.',
   keywords: 'rent a car, Sri Lanka, vehicle rental, Gasith, car hire',
+  icons: {
+    icon: '/logo.webp',
+    apple: '/logo.webp',
+    shortcut: '/logo.webp',
+  },
   openGraph: {
     title: 'Gasith Rent a Car',
     description: 'Premium vehicle rental services in Sri Lanka',
