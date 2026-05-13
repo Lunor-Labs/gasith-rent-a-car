@@ -13,11 +13,12 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(auth.currentUser);
+  const [user, setUser] = useState<User | null>(auth?.currentUser ?? null);
   // If Firebase already has a cached user synchronously, skip the loading state entirely
-  const [loading, setLoading] = useState(!auth.currentUser);
+  const [loading, setLoading] = useState(auth ? !auth.currentUser : false);
 
   useEffect(() => {
+    if (!auth) return;
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
       setLoading(false);
