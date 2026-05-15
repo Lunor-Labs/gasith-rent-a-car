@@ -9,6 +9,9 @@ on:
       - 'frontend/**'
       - '.github/workflows/deploy-new.yml'
 
+env:
+  VERCEL_PROJECT_NAME: gasith-rent-a-car
+
 concurrency:
   group: deploy-${{ github.ref }}
   cancel-in-progress: true
@@ -72,7 +75,7 @@ jobs:
         run: |
           vercel link \
             --yes \
-            --project=dp-resume-analysis-platform \
+            --project=${{ env.VERCEL_PROJECT_NAME }} \
             --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Pull Vercel Environment Info (Preview)
@@ -153,7 +156,7 @@ jobs:
         run: |
           vercel link \
             --yes \
-            --project=dp-resume-analysis-platform \
+            --project=${{ env.VERCEL_PROJECT_NAME }} \
             --token=${{ secrets.VERCEL_TOKEN }}
       
       - name: Pull Vercel Environment Info
