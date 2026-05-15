@@ -7,7 +7,7 @@ on:
       - dev
     paths:
       - 'frontend/**'
-      - '.github/workflows/deploy.yml'
+      - '.github/workflows/deploy-new.yml'
 
 concurrency:
   group: deploy-${{ github.ref }}
