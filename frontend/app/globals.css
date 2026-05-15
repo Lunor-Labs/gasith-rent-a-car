@@ -2,9 +2,11 @@
 
 :root {
   /* Stitch design tokens */
-  --gold: #F5C518;
-  --gold-light: #ffe08b;
-  --gold-dark: #745b00;
+  /* Champagne gold — oklch(0.82 0.10 88deg) */
+  --gold: #D4A853;
+  --gold: oklch(0.82 0.10 88deg);
+  --gold-light: #E8D49A;
+  --gold-dark: #7A5C1E;
   --primary-container: #F5C518;
   --on-primary-container: #241a00;
   --bg-primary: #131313;
@@ -299,6 +301,39 @@ tbody td { padding: 0.9rem 1rem; font-size: 0.88rem; color: var(--text-primary);
 .section-title { font-size: clamp(1.8rem, 5vw, 2.8rem); margin-bottom: 0.5rem; }
 .section-subtitle { font-size: 1rem; color: var(--text-secondary); max-width: 520px; }
 .section-header { margin-bottom: 2.5rem; }
+
+/* ─── Tabular numerals ────────────────────────────────────────────────────── */
+.num {
+  font-family: var(--font-geist), 'DM Sans', ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+  letter-spacing: -0.5px;
+}
+.currency-prefix {
+  font-size: 0.6em; font-weight: 500; color: var(--text-muted);
+  margin-right: 0.15em; vertical-align: 0.1em;
+  letter-spacing: 0.04em; text-transform: uppercase;
+}
+
+/* ─── Nav count badge ─────────────────────────────────────────────────────── */
+.nav-badge {
+  font-size: 0.63rem; font-weight: 700;
+  padding: 0.08rem 0.42rem; border-radius: 99px;
+  background: var(--bg-elevated); color: var(--text-muted);
+  margin-left: auto; font-variant-numeric: tabular-nums;
+}
+.nav-item.active .nav-badge {
+  background: rgba(212,168,83,0.15); color: var(--gold);
+}
+
+/* ─── Topbar extras ───────────────────────────────────────────────────────── */
+.topbar-date-chip {
+  display: flex; align-items: center; gap: 0.35rem;
+  font-size: 0.74rem; font-weight: 500; color: var(--text-secondary);
+  background: var(--bg-elevated); border: 1px solid var(--border-subtle);
+  border-radius: 8px; padding: 0.32rem 0.75rem;
+}
+.topbar-right { display: flex; align-items: center; gap: 0.75rem; }
 
 /* ─── Gold Line ───────────────────────────────────────────────────────────── */
 .gold-line {
