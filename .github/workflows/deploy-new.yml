@@ -1,4 +1,4 @@
-name: Deploy to Vercel
+name: Deploy
 
 on:
   push:
@@ -7,6 +7,8 @@ on:
       - dev
     paths:
       - 'frontend/**'
+      - 'backend/**'
+      - 'firebase/**'
       - '.github/workflows/deploy-new.yml'
 
 env:
@@ -18,9 +20,9 @@ concurrency:
 
 jobs:
   # ====================================
-  # DEV DEPLOYMENT → Vercel Preview
+  # FRONTEND DEV → Vercel Preview
   # ====================================
-  deploy-dev:
+  deploy-frontend-dev:
     if: github.ref == 'refs/heads/dev'
     runs-on: ubuntu-latest
     environment: development
@@ -70,7 +72,7 @@ jobs:
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
-      - name: Create project if not exists & Pull Vercel Environment Info (Preview)
+      - name: Link Vercel project
         working-directory: ${{ env.WORKING_DIR }}
         run: |
           vercel link \
@@ -99,16 +101,14 @@ jobs:
             --token=${{ secrets.VERCEL_TOKEN }}
 
   # ====================================
-  # PROD DEPLOYMENT → Vercel Production
+  # BACKEND DEV → Firebase Cloud Functions (dev project)
   # ====================================
-  deploy-prod:
-    if: github.ref == 'refs/heads/main'
+  deploy-functions-dev:
+    if: github.ref == 'refs/heads/dev'
     runs-on: ubuntu-latest
-    environment: production
+    environment: development
     permissions:
       contents: read
-    env:
-      WORKING_DIR: ./Frontend
 
     steps:
       - name: Checkout repository
@@ -121,7 +121,60 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: 'Frontend/package-lock.json'
+          cache-dependency-path: 'backend/package-lock.json'
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm install
+
+      - name: Write backend .env
+        working-directory: backend
+        run: echo "FRONTEND_URL=${{ secrets.FRONTEND_URL }}" > .env
+
+      - name: Set up Google credentials
+        run: |
+          cat > /tmp/sa.json << EOF
+          {
+            "type": "service_account",
+            "project_id": "${{ secrets.FIREBASE_PROJECT_ID }}",
+            "private_key": "${{ secrets.FIREBASE_PRIVATE_KEY }}",
+            "client_email": "${{ secrets.FIREBASE_CLIENT_EMAIL }}"
+          }
+          EOF
+          echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json" >> $GITHUB_ENV
+
+      - name: Deploy Cloud Functions
+        working-directory: firebase
+        run: |
+          npx firebase-tools deploy \
+            --only functions \
+            --project ${{ secrets.FIREBASE_PROJECT_ID }} \
+            --non-interactive
+
+  # ====================================
+  # FRONTEND PROD → Vercel Production
+  # ====================================
+  deploy-frontend-prod:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+    env:
+      WORKING_DIR: ./frontend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
 
       - name: Clean npm cache
         run: npm cache clean --force
@@ -151,14 +204,14 @@ jobs:
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
-      - name: Create project if not exists
+      - name: Link Vercel project
         working-directory: ${{ env.WORKING_DIR }}
         run: |
           vercel link \
             --yes \
             --project=${{ env.VERCEL_PROJECT_NAME }} \
             --token=${{ secrets.VERCEL_TOKEN }}
-      
+
       - name: Pull Vercel Environment Info
         working-directory: ${{ env.WORKING_DIR }}
         run: |
@@ -179,3 +232,53 @@ jobs:
             --prod \
             --token=${{ secrets.VERCEL_TOKEN }}
 
+  # ====================================
+  # BACKEND PROD → Firebase Cloud Functions (production)
+  # ====================================
+  deploy-functions-prod:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'backend/package-lock.json'
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm install
+
+      - name: Write backend .env
+        working-directory: backend
+        run: echo "FRONTEND_URL=${{ secrets.FRONTEND_URL }}" > .env
+
+      - name: Set up Google credentials
+        run: |
+          cat > /tmp/sa.json << EOF
+          {
+            "type": "service_account",
+            "project_id": "${{ secrets.FIREBASE_PROJECT_ID }}",
+            "private_key": "${{ secrets.FIREBASE_PRIVATE_KEY }}",
+            "client_email": "${{ secrets.FIREBASE_CLIENT_EMAIL }}"
+          }
+          EOF
+          echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json" >> $GITHUB_ENV
+
+      - name: Deploy Cloud Functions
+        working-directory: firebase
+        run: |
+          npx firebase-tools deploy \
+            --only functions \
+            --project ${{ secrets.FIREBASE_PROJECT_ID }} \
+            --non-interactive
