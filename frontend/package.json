@@ -9,9 +9,9 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.49.0",
     "axios": "^1.7.2",
     "date-fns": "^3.6.0",
-    "firebase": "^10.12.2",
     "geist": "^1.7.0",
     "lucide-react": "^1.16.0",
     "next": "16.2.4",

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { db, storage } from '../config/firebase';
+import { supabase, STORAGE_BUCKET } from '../config/supabase';
 import { authMiddleware } from '../middleware/auth.middleware';
 import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
@@ -11,9 +11,18 @@ const upload = multer({ storage: multer.memoryStorage() });
 router.get('/', async (req, res) => {
   try {
     const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
-    const base = db.collection('vehicles').orderBy('createdAt', 'desc');
-    const snap = await (limit ? base.limit(limit) : base).get();
-    res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    let query = supabase
+      .from('vehicles')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (limit) query = query.limit(limit);
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    // Map snake_case DB fields to camelCase for frontend compatibility
+    res.json((data || []).map(mapVehicleToResponse));
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -22,9 +31,13 @@ router.get('/', async (req, res) => {
 // GET only vehicles shown on landing page (public)
 router.get('/landing', async (req, res) => {
   try {
-    const snap = await db.collection('vehicles').where('showOnLanding', '==', true).get();
-    const vehicles = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    res.json(vehicles);
+    const { data, error } = await supabase
+      .from('vehicles')
+      .select('*')
+      .eq('show_on_landing', true);
+
+    if (error) throw error;
+    res.json((data || []).map(mapVehicleToResponse));
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -33,9 +46,14 @@ router.get('/landing', async (req, res) => {
 // GET single vehicle
 router.get('/:id', async (req, res) => {
   try {
-    const doc = await db.collection('vehicles').doc(String(req.params.id)).get();
-    if (!doc.exists) return res.status(404).json({ error: 'Vehicle not found' });
-    res.json({ id: doc.id, ...doc.data() });
+    const { data, error } = await supabase
+      .from('vehicles')
+      .select('*')
+      .eq('id', req.params.id)
+      .single();
+
+    if (error) return res.status(404).json({ error: 'Vehicle not found' });
+    res.json(mapVehicleToResponse(data));
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -48,29 +66,29 @@ router.post('/', authMiddleware, upload.single('image'), async (req, res) => {
     let imageUrl = '';
 
     if (req.file) {
-      const bucket = storage.bucket();
-      const fileName = `vehicles/${uuidv4()}-${req.file.originalname}`;
-      const file = bucket.file(fileName);
-      await file.save(req.file.buffer, { contentType: req.file.mimetype, public: true });
-      imageUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
+      imageUrl = await uploadFile('vehicles', req.file);
     }
 
-    const docRef = await db.collection('vehicles').add({
-      name,
-      type,
-      plate,
-      pricePerKm: Number(pricePerKm),
-      pricePerDay: Number(pricePerDay),
-      isOutsourced: isOutsourced === 'true',
-      commissionRate: Number(commissionRate) || 10,
-      lastMeterReading: Number(initialMeterReading) || 0,
-      imageUrl,
-      isAvailable: true,
-      showOnLanding: false,
-      createdAt: new Date(),
-    });
+    const { data, error } = await supabase
+      .from('vehicles')
+      .insert({
+        name,
+        type,
+        plate,
+        price_per_km: Number(pricePerKm),
+        price_per_day: Number(pricePerDay),
+        is_outsourced: isOutsourced === 'true',
+        commission_rate: Number(commissionRate) || 10,
+        last_meter_reading: Number(initialMeterReading) || 0,
+        image_url: imageUrl,
+        is_available: true,
+        show_on_landing: false,
+      })
+      .select()
+      .single();
 
-    res.json({ id: docRef.id });
+    if (error) throw error;
+    res.json({ id: data.id });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -79,23 +97,28 @@ router.post('/', authMiddleware, upload.single('image'), async (req, res) => {
 // PUT update vehicle (admin)
 router.put('/:id', authMiddleware, upload.single('image'), async (req, res) => {
   try {
-    const updateData: any = { ...req.body };
-    if (req.body.pricePerKm) updateData.pricePerKm = Number(req.body.pricePerKm);
-    if (req.body.pricePerDay) updateData.pricePerDay = Number(req.body.pricePerDay);
-    if (req.body.commissionRate) updateData.commissionRate = Number(req.body.commissionRate);
-    if (req.body.isOutsourced !== undefined) updateData.isOutsourced = req.body.isOutsourced === 'true';
-    if (req.body.showOnLanding !== undefined) updateData.showOnLanding = req.body.showOnLanding === 'true';
-    if (req.body.isAvailable !== undefined) updateData.isAvailable = req.body.isAvailable === 'true';
+    const updateData: any = {};
+
+    if (req.body.name !== undefined) updateData.name = req.body.name;
+    if (req.body.type !== undefined) updateData.type = req.body.type;
+    if (req.body.plate !== undefined) updateData.plate = req.body.plate;
+    if (req.body.pricePerKm) updateData.price_per_km = Number(req.body.pricePerKm);
+    if (req.body.pricePerDay) updateData.price_per_day = Number(req.body.pricePerDay);
+    if (req.body.commissionRate) updateData.commission_rate = Number(req.body.commissionRate);
+    if (req.body.isOutsourced !== undefined) updateData.is_outsourced = req.body.isOutsourced === 'true';
+    if (req.body.showOnLanding !== undefined) updateData.show_on_landing = req.body.showOnLanding === 'true';
+    if (req.body.isAvailable !== undefined) updateData.is_available = req.body.isAvailable === 'true';
 
     if (req.file) {
-      const bucket = storage.bucket();
-      const fileName = `vehicles/${uuidv4()}-${req.file.originalname}`;
-      const file = bucket.file(fileName);
-      await file.save(req.file.buffer, { contentType: req.file.mimetype, public: true });
-      updateData.imageUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
+      updateData.image_url = await uploadFile('vehicles', req.file);
     }
 
-    await db.collection('vehicles').doc(String(req.params.id)).update(updateData);
+    const { error } = await supabase
+      .from('vehicles')
+      .update(updateData)
+      .eq('id', req.params.id);
+
+    if (error) throw error;
     res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -105,7 +128,12 @@ router.put('/:id', authMiddleware, upload.single('image'), async (req, res) => {
 // DELETE vehicle (admin)
 router.delete('/:id', authMiddleware, async (req, res) => {
   try {
-    await db.collection('vehicles').doc(String(req.params.id)).delete();
+    const { error } = await supabase
+      .from('vehicles')
+      .delete()
+      .eq('id', req.params.id);
+
+    if (error) throw error;
     res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -115,15 +143,63 @@ router.delete('/:id', authMiddleware, async (req, res) => {
 // GET meter readings for a vehicle
 router.get('/:id/meter-readings', authMiddleware, async (req, res) => {
   try {
-    const snap = await db.collection('meterReadings')
-      .where('vehicleId', '==', String(req.params.id))
-      .orderBy('recordedAt', 'desc')
-      .limit(20)
-      .get();
-    res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    const { data, error } = await supabase
+      .from('meter_readings')
+      .select('*')
+      .eq('vehicle_id', req.params.id)
+      .order('recorded_at', { ascending: false })
+      .limit(20);
+
+    if (error) throw error;
+    res.json((data || []).map(r => ({
+      id: r.id,
+      vehicleId: r.vehicle_id,
+      bookingId: r.booking_id,
+      reading: r.reading,
+      type: r.type,
+      recordedAt: r.recorded_at,
+      recordedBy: r.recorded_by,
+    })));
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 });
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+async function uploadFile(folder: string, file: Express.Multer.File): Promise<string> {
+  const fileName = `${folder}/${uuidv4()}-${file.originalname}`;
+  const { error } = await supabase.storage
+    .from(STORAGE_BUCKET)
+    .upload(fileName, file.buffer, {
+      contentType: file.mimetype,
+      upsert: false,
+    });
+  if (error) throw error;
+
+  const { data } = supabase.storage
+    .from(STORAGE_BUCKET)
+    .getPublicUrl(fileName);
+
+  return data.publicUrl;
+}
+
+function mapVehicleToResponse(v: any) {
+  return {
+    id: v.id,
+    name: v.name,
+    type: v.type,
+    plate: v.plate,
+    pricePerKm: v.price_per_km,
+    pricePerDay: v.price_per_day,
+    isOutsourced: v.is_outsourced,
+    commissionRate: v.commission_rate,
+    lastMeterReading: v.last_meter_reading,
+    imageUrl: v.image_url,
+    isAvailable: v.is_available,
+    showOnLanding: v.show_on_landing,
+    createdAt: v.created_at,
+  };
+}
 
 export default router;

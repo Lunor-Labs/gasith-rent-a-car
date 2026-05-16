@@ -1,15 +1,16 @@
 import axios from 'axios';
-import { auth } from './firebase';
+import { supabase } from './supabase';
 
 const API = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api',
 });
 
 API.interceptors.request.use(async (config) => {
-  const user = auth?.currentUser;
-  if (user) {
-    const token = await user.getIdToken();
-    config.headers.Authorization = `Bearer ${token}`;
+  if (supabase) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      config.headers.Authorization = `Bearer ${session.access_token}`;
+    }
   }
   return config;
 });

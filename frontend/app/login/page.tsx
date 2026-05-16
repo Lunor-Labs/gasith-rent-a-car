@@ -35,7 +35,7 @@ export default function LoginPage() {
       window.location.href = '/admin';
     } catch (err: any) {
       console.error('[LoginPage] login error:', err.code, err.message);
-      toast.error(err.code === 'auth/invalid-credential' ? 'Invalid email or password' : 'Login failed');
+      toast.error(err.message?.includes('Invalid login') ? 'Invalid email or password' : (err.message || 'Login failed'));
       setSubmitting(false);
     }
   };

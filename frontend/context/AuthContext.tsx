@@ -1,7 +1,7 @@
 'use client';
 import { createContext, useContext, useEffect, useState } from 'react';
-import { User, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { supabase } from '@/lib/supabase';
+import type { User, Session } from '@supabase/supabase-js';
 
 interface AuthContextType {
   user: User | null;
@@ -13,30 +13,44 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(auth?.currentUser ?? null);
-  // If Firebase already has a cached user synchronously, skip the loading state entirely
-  const [loading, setLoading] = useState(auth ? !auth.currentUser : false);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!auth) return;
-    const unsub = onAuthStateChanged(auth, (u) => {
-      setUser(u);
+    if (!supabase) {
+      setLoading(false);
+      return;
+    }
+
+    // Check for existing session on mount
+    supabase.auth.getSession().then(({ data: { session } }: { data: { session: Session | null } }) => {
+      setUser(session?.user ?? null);
       setLoading(false);
     });
-    return unsub;
+
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event: string, session: Session | null) => {
+        setUser(session?.user ?? null);
+        setLoading(false);
+      }
+    );
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const login = async (email: string, password: string) => {
     console.log('[AuthProvider] login() start');
-    const cred = await signInWithEmailAndPassword(auth, email, password);
-    console.log('[AuthProvider] login() done —', cred.user.email);
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    console.log('[AuthProvider] login() done —', data.user?.email);
     // Eagerly set user so AdminLayout never sees null after navigation
-    setUser(cred.user);
+    setUser(data.user);
     setLoading(false);
   };
 
   const logout = async () => {
-    await signOut(auth);
+    await supabase.auth.signOut();
     setUser(null);
   };
 

@@ -1,7 +1,6 @@
-import './config/firebase'; // initializes firebase + dotenv before anything else
+import './config/supabase'; // initializes supabase + dotenv before anything else
 import express from 'express';
 import cors from 'cors';
-import * as functions from 'firebase-functions';
 import authRoutes from './routes/auth.routes';
 import vehicleRoutes from './routes/vehicles.routes';
 import customerRoutes from './routes/customers.routes';
@@ -26,15 +25,9 @@ app.use('/api/invoices', invoiceRoutes);
 
 app.get('/api/health', (_, res) => res.json({ status: 'ok', timestamp: new Date() }));
 
-// Cloud Functions Gen 1 export
-export const api = functions.https.onRequest(app);
-
-// Local development server (not used in Cloud Functions)
-if (!process.env.FIREBASE_CONFIG) {
-  const PORT = process.env.PORT || 5000;
-  app.listen(PORT, () => {
-    console.log(`🚗 Gasith Backend running on http://localhost:${PORT}`);
-  });
-}
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`🚗 Gasith Backend running on http://localhost:${PORT}`);
+});
 
 export default app;
