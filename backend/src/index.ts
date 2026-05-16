@@ -1,7 +1,7 @@
 import './config/firebase'; // initializes firebase + dotenv before anything else
 import express from 'express';
 import cors from 'cors';
-import { onRequest } from 'firebase-functions/v2/https';
+import * as functions from 'firebase-functions';
 import authRoutes from './routes/auth.routes';
 import vehicleRoutes from './routes/vehicles.routes';
 import customerRoutes from './routes/customers.routes';
@@ -26,8 +26,8 @@ app.use('/api/invoices', invoiceRoutes);
 
 app.get('/api/health', (_, res) => res.json({ status: 'ok', timestamp: new Date() }));
 
-// Cloud Functions v2 export — Firebase Hosting rewrites /api/** to this function
-export const api = onRequest(app);
+// Cloud Functions Gen 1 export
+export const api = functions.https.onRequest(app);
 
 // Local development server (not used in Cloud Functions)
 if (!process.env.FIREBASE_CONFIG) {
