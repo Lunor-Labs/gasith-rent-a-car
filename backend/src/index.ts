@@ -10,26 +10,7 @@ import invoiceRoutes from './routes/invoices.routes';
 const app = express();
 
 app.use(cors({
-  origin: (origin, callback) => {
-    // Allow requests with no origin (server-to-server, Postman, health checks)
-    if (!origin) return callback(null, true);
-
-    const allowed = [
-      process.env.FRONTEND_URL,
-      'http://localhost:3000',
-      'http://localhost:3001',
-    ].filter(Boolean);
-
-    // Allow any *.vercel.app subdomain (covers all preview + production deploys)
-    if (
-      allowed.includes(origin) ||
-      origin.endsWith('.vercel.app')
-    ) {
-      return callback(null, true);
-    }
-
-    callback(new Error(`CORS: origin ${origin} not allowed`));
-  },
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true,
 }));
 
