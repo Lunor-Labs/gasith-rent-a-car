@@ -1,7 +1,7 @@
 {
   "functions": [
     {
-      "source": "../backend",
+      "source": "./backend",
       "codebase": "backend",
       "ignore": [
         "node_modules",
@@ -15,14 +15,14 @@
     }
   ],
   "firestore": {
-    "rules": "firestore.rules",
-    "indexes": "firestore.indexes.json"
+    "rules": "firebase/firestore.rules",
+    "indexes": "firebase/firestore.indexes.json"
   },
   "storage": {
-    "rules": "storage.rules"
+    "rules": "firebase/storage.rules"
   },
   "hosting": {
-    "public": "../frontend/out",
+    "public": "./frontend/out",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [
       { "source": "/api/**", "function": "api" },
