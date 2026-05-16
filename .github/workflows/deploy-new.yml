@@ -109,6 +109,7 @@ jobs:
     environment: development
     permissions:
       contents: read
+      id-token: write
 
     steps:
       - name: Checkout repository
@@ -123,6 +124,11 @@ jobs:
           cache: 'npm'
           cache-dependency-path: 'backend/package-lock.json'
 
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
       - name: Install backend dependencies
         working-directory: backend
         run: npm install
@@ -130,18 +136,6 @@ jobs:
       - name: Write backend .env
         working-directory: backend
         run: echo "FRONTEND_URL=${{ secrets.FRONTEND_URL }}" > .env
-
-      - name: Set up Google credentials
-        run: |
-          cat > /tmp/sa.json << EOF
-          {
-            "type": "service_account",
-            "project_id": "${{ secrets.FIREBASE_PROJECT_ID }}",
-            "private_key": "${{ secrets.FIREBASE_PRIVATE_KEY }}",
-            "client_email": "${{ secrets.FIREBASE_CLIENT_EMAIL }}"
-          }
-          EOF
-          echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json" >> $GITHUB_ENV
 
       - name: Deploy Cloud Functions
         working-directory: firebase
@@ -241,6 +235,7 @@ jobs:
     environment: production
     permissions:
       contents: read
+      id-token: write
 
     steps:
       - name: Checkout repository
@@ -255,6 +250,11 @@ jobs:
           cache: 'npm'
           cache-dependency-path: 'backend/package-lock.json'
 
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
       - name: Install backend dependencies
         working-directory: backend
         run: npm install
@@ -262,18 +262,6 @@ jobs:
       - name: Write backend .env
         working-directory: backend
         run: echo "FRONTEND_URL=${{ secrets.FRONTEND_URL }}" > .env
-
-      - name: Set up Google credentials
-        run: |
-          cat > /tmp/sa.json << EOF
-          {
-            "type": "service_account",
-            "project_id": "${{ secrets.FIREBASE_PROJECT_ID }}",
-            "private_key": "${{ secrets.FIREBASE_PRIVATE_KEY }}",
-            "client_email": "${{ secrets.FIREBASE_CLIENT_EMAIL }}"
-          }
-          EOF
-          echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json" >> $GITHUB_ENV
 
       - name: Deploy Cloud Functions
         working-directory: firebase
