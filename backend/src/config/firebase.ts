@@ -5,7 +5,7 @@ import * as admin from 'firebase-admin';
 const isCloudFunctions = !!process.env.FIREBASE_CONFIG;
 
 if (!isCloudFunctions) {
-  dotenv.config();
+  dotenv.config({ path: '.env.local' });
 }
 
 if (!admin.apps.length) {
