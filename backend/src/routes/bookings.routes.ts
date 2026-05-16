@@ -95,7 +95,7 @@ router.post('/', authMiddleware, async (req, res) => {
     const {
       customerId, vehicleId, startDate, endDate,
       startMeterReading, pricePerKm, pricePerDay,
-      isOutsourced, outsourcedPayment, commissionRate, notes
+      isOutsourced, outsourcedPayment, commissionRate, billingMode, notes
     } = req.body;
 
     // Get vehicle's last meter reading
@@ -117,12 +117,13 @@ router.post('/', authMiddleware, async (req, res) => {
         total_km: 0,
         price_per_km: Number(pricePerKm) || vehicleData?.price_per_km || 0,
         price_per_day: Number(pricePerDay) || vehicleData?.price_per_day || 0,
+        billing_mode: billingMode || 'per_km',
         base_amount: 0,
         discount_amount: 0,
         final_amount: 0,
         is_outsourced: Boolean(isOutsourced),
         outsourced_payment: outsourcedPayment ? Number(outsourcedPayment) : null,
-        commission_rate: Number(commissionRate) || 10,
+        commission_rate: Boolean(isOutsourced) ? (Number(commissionRate) || 10) : 0,
         status: 'active',
         invoice_url: '',
         notes: notes || '',
@@ -181,10 +182,21 @@ router.put('/:id/complete', authMiddleware, async (req, res) => {
       const commission = Number(commissionRate) || booking.commission_rate || 10;
       finalAmount = payment - (payment * commission / 100);
       baseAmount = payment;
+    } else if (booking.billing_mode === 'per_day') {
+      // Per-day billing: calculate days between start and end
+      const start = new Date(booking.start_date);
+      const end = endDate ? new Date(endDate) : new Date();
+      const diffMs = end.getTime() - start.getTime();
+      const days = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+      baseAmount = days * (booking.price_per_day || 0);
+      totalKm = endMeterReading ? Number(endMeterReading) - booking.start_meter_reading : 0;
+      const discount = Number(discountAmount) || 0;
+      finalAmount = baseAmount - discount;
     } else {
+      // Per-km billing (default)
       const endReading = Number(endMeterReading);
       totalKm = endReading - booking.start_meter_reading;
-      baseAmount = totalKm * booking.price_per_km;
+      baseAmount = totalKm * (booking.price_per_km || 0);
       const discount = Number(discountAmount) || 0;
       finalAmount = baseAmount - discount;
     }
@@ -285,6 +297,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
       totalKm: 'total_km',
       pricePerKm: 'price_per_km',
       pricePerDay: 'price_per_day',
+      billingMode: 'billing_mode',
       baseAmount: 'base_amount',
       discountAmount: 'discount_amount',
       finalAmount: 'final_amount',
@@ -355,6 +368,7 @@ function mapBookingToResponse(b: any) {
     totalKm: b.total_km,
     pricePerKm: b.price_per_km,
     pricePerDay: b.price_per_day,
+    billingMode: b.billing_mode || 'per_km',
     baseAmount: b.base_amount,
     discountAmount: b.discount_amount,
     finalAmount: b.final_amount,

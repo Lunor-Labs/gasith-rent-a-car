@@ -617,3 +617,37 @@ tbody td { padding: 0.9rem 1rem; font-size: 0.88rem; color: var(--text-primary);
   z-index: 99; display: none; backdrop-filter: blur(2px);
 }
 .sidebar-overlay.show { display: block; }
+
+/* ─── Responsive Table/Card Toggle ────────────────────────────────────────── */
+/* Desktop: show tables, hide mobile cards */
+.responsive-hide-mobile { display: block; }
+.responsive-show-mobile { display: none !important; }
+
+@media (max-width: 767px) {
+  /* Mobile: hide tables, show cards */
+  .responsive-hide-mobile { display: none !important; }
+  .responsive-show-mobile { display: flex !important; }
+
+  /* Better modal sizing on mobile */
+  .modal { max-width: 100%; border-radius: 16px; }
+  .modal-lg { max-width: 100%; }
+
+  /* Grid adjustments for very small screens */
+  .grid-2 { grid-template-columns: 1fr !important; }
+  .grid-3 { grid-template-columns: 1fr 1fr !important; }
+
+  /* Page header wrapping */
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  /* Better button sizing on mobile */
+  .btn-sm { padding: 0.4rem 0.65rem; font-size: 0.75rem; }
+}
+
+@media (max-width: 480px) {
+  .grid-3 { grid-template-columns: 1fr !important; }
+  .admin-content { padding: 0.75rem 0.6rem 2rem !important; }
+}

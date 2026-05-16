@@ -2,19 +2,21 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useAuth } from '@/context/AuthContext';
+import { getDashboardStats } from '@/lib/api';
 import toast from 'react-hot-toast';
 import {
   LayoutGrid, Car, Users, CalendarDays, Receipt,
-  BarChart2, Settings, Bell, Search, Globe, LogOut, Menu, Car as CarIcon,
+  BarChart2, Settings, Bell, Search, Globe, LogOut, Menu,
 } from 'lucide-react';
 
 const MAIN_NAV = [
-  { label: 'Dashboard', href: '/admin',           Icon: LayoutGrid,   exact: true,  badge: null },
-  { label: 'Vehicles',  href: '/admin/vehicles',  Icon: Car,          exact: false, badge: 24   },
-  { label: 'Customers', href: '/admin/customers', Icon: Users,        exact: false, badge: 142  },
-  { label: 'Bookings',  href: '/admin/bookings',  Icon: CalendarDays, exact: false, badge: 18   },
-  { label: 'Invoices',  href: '/admin/invoices',  Icon: Receipt,      exact: false, badge: null },
+  { label: 'Dashboard', href: '/admin',           Icon: LayoutGrid,   exact: true,  badgeKey: null      },
+  { label: 'Vehicles',  href: '/admin/vehicles',  Icon: Car,          exact: false, badgeKey: 'totalVehicles'  },
+  { label: 'Customers', href: '/admin/customers', Icon: Users,        exact: false, badgeKey: 'totalCustomers' },
+  { label: 'Bookings',  href: '/admin/bookings',  Icon: CalendarDays, exact: false, badgeKey: 'activeBookings' },
+  { label: 'Invoices',  href: '/admin/invoices',  Icon: Receipt,      exact: false, badgeKey: null      },
 ];
 
 const WORKSPACE_NAV = [
@@ -28,6 +30,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [navCounts, setNavCounts] = useState<Record<string, number>>({});
   const mainRef = useRef<HTMLElement>(null);
 
   const isActive = (item: { href: string; exact: boolean }) =>
@@ -38,6 +41,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   useEffect(() => {
     if (!loading && !user) router.replace('/login');
   }, [user, loading]);
+
+  // Fetch real counts for sidebar badges
+  useEffect(() => {
+    if (user) {
+      getDashboardStats()
+        .then(r => setNavCounts(r.data || {}))
+        .catch(() => {});
+    }
+  }, [user]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 1);
@@ -72,7 +84,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         {/* Brand */}
         <div className="sidebar-logo">
-          <CarIcon size={16} strokeWidth={1.5} style={{ color: 'var(--gold)', display: 'inline', marginRight: '0.4rem', verticalAlign: 'middle' }} />
+          <Image src="/logo.webp" alt="Gasith" width={40} height={40} style={{ borderRadius: 8, marginRight: '0.5rem', verticalAlign: 'middle', display: 'inline-block' }} />
           <span>Gasith</span> Rent a Car
           <div className="sidebar-logo-sub">Admin Portal</div>
         </div>
@@ -81,18 +93,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* Nav */}
         <nav className="sidebar-nav">
           <div className="sidebar-section-label">Main</div>
-          {MAIN_NAV.map(({ label, href, Icon, exact, badge }) => (
-            <Link
-              key={href}
-              href={href}
-              className={`nav-item ${isActive({ href, exact }) ? 'active' : ''}`}
-              onClick={() => setSidebarOpen(false)}
-            >
-              <span className="nav-item-icon"><Icon size={15} strokeWidth={1.5} /></span>
-              {label}
-              {badge != null && <span className="nav-badge">{badge}</span>}
-            </Link>
-          ))}
+          {MAIN_NAV.map(({ label, href, Icon, exact, badgeKey }) => {
+            const badge = badgeKey ? navCounts[badgeKey] : undefined;
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={`nav-item ${isActive({ href, exact }) ? 'active' : ''}`}
+                onClick={() => setSidebarOpen(false)}
+              >
+                <span className="nav-item-icon"><Icon size={15} strokeWidth={1.5} /></span>
+                {label}
+                {badge != null && <span className="nav-badge">{badge}</span>}
+              </Link>
+            );
+          })}
 
           <div className="sidebar-section-label" style={{ marginTop: '1.25rem' }}>Workspace</div>
           {WORKSPACE_NAV.map(({ label, href, Icon, exact }) => (

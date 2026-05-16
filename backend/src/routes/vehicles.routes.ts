@@ -78,7 +78,7 @@ router.post('/', authMiddleware, upload.single('image'), async (req, res) => {
         price_per_km: Number(pricePerKm),
         price_per_day: Number(pricePerDay),
         is_outsourced: isOutsourced === 'true',
-        commission_rate: Number(commissionRate) || 10,
+        commission_rate: isOutsourced === 'true' ? (Number(commissionRate) || 10) : 0,
         last_meter_reading: Number(initialMeterReading) || 0,
         image_url: imageUrl,
         is_available: true,
@@ -104,8 +104,18 @@ router.put('/:id', authMiddleware, upload.single('image'), async (req, res) => {
     if (req.body.plate !== undefined) updateData.plate = req.body.plate;
     if (req.body.pricePerKm) updateData.price_per_km = Number(req.body.pricePerKm);
     if (req.body.pricePerDay) updateData.price_per_day = Number(req.body.pricePerDay);
-    if (req.body.commissionRate) updateData.commission_rate = Number(req.body.commissionRate);
-    if (req.body.isOutsourced !== undefined) updateData.is_outsourced = req.body.isOutsourced === 'true';
+    if (req.body.isOutsourced !== undefined) {
+      const isOutsourced = req.body.isOutsourced === 'true';
+      updateData.is_outsourced = isOutsourced;
+      // Only store commission for outsourced vehicles, reset to 0 for own vehicles
+      if (isOutsourced) {
+        updateData.commission_rate = Number(req.body.commissionRate) || 10;
+      } else {
+        updateData.commission_rate = 0;
+      }
+    } else if (req.body.commissionRate) {
+      updateData.commission_rate = Number(req.body.commissionRate);
+    }
     if (req.body.showOnLanding !== undefined) updateData.show_on_landing = req.body.showOnLanding === 'true';
     if (req.body.isAvailable !== undefined) updateData.is_available = req.body.isAvailable === 'true';
 

@@ -53,6 +53,7 @@ export default function LoginPage() {
       <div style={{ width: '100%', maxWidth: '420px', animation: 'slideUp 0.3s ease' }}>
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+          <img src="/logo.webp" alt="Gasith Rent a Car" style={{ width: 72, height: 72, borderRadius: 14, marginBottom: '1rem', display: 'inline-block' }} />
           <div style={{ fontFamily: 'Outfit,sans-serif', fontWeight: 900, fontSize: '1.6rem', marginBottom: '0.5rem' }}>
             <span style={{ color: 'var(--gold)' }}>GASITH</span> RENT A CAR
           </div>

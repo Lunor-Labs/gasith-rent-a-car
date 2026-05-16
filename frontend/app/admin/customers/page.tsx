@@ -58,6 +58,12 @@ export default function CustomersPage() {
     c.nicNumber?.includes(search)
   );
 
+  const fmtDate = (ts: any) => {
+    if (!ts) return '—';
+    if (typeof ts === 'string') return new Date(ts).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    return ts?._seconds ? new Date(ts._seconds * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+  };
+
   const DocThumb = ({ url, label }: { url: string; label: string }) => url ? (
     <a href={url} target="_blank" style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }}>
       <img src={url} alt={label} style={{ width: '100%', height: 90, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border)', marginBottom: 4 }} />
@@ -80,36 +86,66 @@ export default function CustomersPage() {
       {loading ? <div style={{ textAlign: 'center', padding: '3rem' }}><div className="spinner" style={{ width: 36, height: 36, margin: '0 auto' }} /></div>
         : filtered.length === 0 ? <div className="empty-state"><div className="empty-state-icon">👥</div><p>No customers found</p></div>
         : (
-          <div className="table-wrap">
-            <table>
-              <thead><tr><th>Name</th><th>Phone</th><th>NIC</th><th>Documents</th><th>Joined</th><th>Actions</th></tr></thead>
-              <tbody>
-                {filtered.map(c => (
-                  <tr key={c.id}>
-                    <td><div style={{ fontWeight: 600 }}>{c.name}</div><div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{c.email}</div></td>
-                    <td>{c.phone}</td>
-                    <td><code style={{ fontSize: '0.78rem' }}>{c.nicNumber || '—'}</code></td>
-                    <td>
-                      <div style={{ display: 'flex', gap: '0.3rem' }}>
-                        {c.nicFrontUrl && <a href={c.nicFrontUrl} target="_blank" className="badge badge-info" style={{ textDecoration: 'none' }}>NIC F</a>}
-                        {c.nicBackUrl && <a href={c.nicBackUrl} target="_blank" className="badge badge-info" style={{ textDecoration: 'none' }}>NIC B</a>}
-                        {c.drivingLicenseUrl && <a href={c.drivingLicenseUrl} target="_blank" className="badge badge-success" style={{ textDecoration: 'none' }}>DL</a>}
-                        {!c.nicFrontUrl && !c.drivingLicenseUrl && <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>None</span>}
-                      </div>
-                    </td>
-                    <td style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{c.createdAt?._seconds ? new Date(c.createdAt._seconds * 1000).toLocaleDateString() : '—'}</td>
-                    <td>
-                      <div style={{ display: 'flex', gap: '0.4rem' }}>
-                        <button onClick={() => openDetail(c)} className="btn btn-ghost btn-sm">View</button>
-                        <button onClick={() => openEdit(c)} className="btn btn-secondary btn-sm">Edit</button>
-                        <button onClick={() => handleDelete(c.id)} className="btn btn-danger btn-sm">🗑</button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <>
+            {/* Desktop Table */}
+            <div className="table-wrap responsive-hide-mobile">
+              <table>
+                <thead><tr><th>Name</th><th>Phone</th><th>NIC</th><th>Documents</th><th>Joined</th><th>Actions</th></tr></thead>
+                <tbody>
+                  {filtered.map(c => (
+                    <tr key={c.id}>
+                      <td><div style={{ fontWeight: 600 }}>{c.name}</div><div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{c.email}</div></td>
+                      <td>{c.phone}</td>
+                      <td><code style={{ fontSize: '0.78rem' }}>{c.nicNumber || '—'}</code></td>
+                      <td>
+                        <div style={{ display: 'flex', gap: '0.3rem' }}>
+                          {c.nicFrontUrl && <a href={c.nicFrontUrl} target="_blank" className="badge badge-info" style={{ textDecoration: 'none' }}>NIC F</a>}
+                          {c.nicBackUrl && <a href={c.nicBackUrl} target="_blank" className="badge badge-info" style={{ textDecoration: 'none' }}>NIC B</a>}
+                          {c.drivingLicenseUrl && <a href={c.drivingLicenseUrl} target="_blank" className="badge badge-success" style={{ textDecoration: 'none' }}>DL</a>}
+                          {!c.nicFrontUrl && !c.drivingLicenseUrl && <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>None</span>}
+                        </div>
+                      </td>
+                      <td style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{fmtDate(c.createdAt)}</td>
+                      <td>
+                        <div style={{ display: 'flex', gap: '0.4rem' }}>
+                          <button onClick={() => openDetail(c)} className="btn btn-ghost btn-sm">View</button>
+                          <button onClick={() => openEdit(c)} className="btn btn-secondary btn-sm">Edit</button>
+                          <button onClick={() => handleDelete(c.id)} className="btn btn-danger btn-sm">🗑</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Cards */}
+            <div className="responsive-show-mobile" style={{ display: 'none', flexDirection: 'column', gap: '0.75rem' }}>
+              {filtered.map(c => (
+                <div key={c.id} className="card" style={{ padding: '1rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{c.name}</div>
+                      <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 2 }}>{c.phone}</div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
+                      {c.nicFrontUrl && <span className="badge badge-info" style={{ fontSize: '0.62rem' }}>NIC</span>}
+                      {c.drivingLicenseUrl && <span className="badge badge-success" style={{ fontSize: '0.62rem' }}>DL</span>}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '0.5rem', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                    {c.email && <span>{c.email}</span>}
+                    {c.nicNumber && <code style={{ fontSize: '0.72rem' }}>NIC: {c.nicNumber}</code>}
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'flex-end' }}>
+                    <button onClick={() => openDetail(c)} className="btn btn-ghost btn-sm">View</button>
+                    <button onClick={() => openEdit(c)} className="btn btn-secondary btn-sm">Edit</button>
+                    <button onClick={() => handleDelete(c.id)} className="btn btn-danger btn-sm">🗑</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
 
       {/* Add/Edit Modal */}
@@ -184,7 +220,7 @@ export default function CustomersPage() {
                 <div style={{ fontWeight: 700, fontSize: '0.82rem', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Booking History ({custBookings.length})</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   {custBookings.map(b => (
-                    <div key={b.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 0.75rem', background: 'var(--bg-elevated)', borderRadius: 8, fontSize: '0.82rem' }}>
+                    <div key={b.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 0.75rem', background: 'var(--bg-elevated)', borderRadius: 8, fontSize: '0.82rem', flexWrap: 'wrap', gap: '0.5rem' }}>
                       <code style={{ color: 'var(--gold)' }}>{b.id.slice(0, 8).toUpperCase()}</code>
                       <span className={`badge ${b.status === 'completed' ? 'badge-success' : b.status === 'active' ? 'badge-info' : 'badge-muted'}`}>{b.status}</span>
                       <span style={{ fontWeight: 600 }}>LKR {(b.finalAmount || 0).toLocaleString()}</span>

@@ -42,8 +42,9 @@ export default function BookingDetailPage() {
 
   useEffect(() => { if (id) load(); }, [id]);
 
-  const preview = () => {
-    if (!booking || booking.isOutsourced) return null;
+  // Preview for per-km billing
+  const previewPerKm = () => {
+    if (!booking || booking.isOutsourced || booking.billingMode === 'per_day') return null;
     const end = Number(endForm.endMeterReading);
     const start = booking.startMeterReading || 0;
     if (!end || end <= start) return null;
@@ -51,6 +52,19 @@ export default function BookingDetailPage() {
     const base = km * (booking.pricePerKm || 0);
     const disc = Number(endForm.discountAmount) || 0;
     return { km, base, disc, final: base - disc };
+  };
+
+  // Preview for per-day billing
+  const previewPerDay = () => {
+    if (!booking || booking.isOutsourced || booking.billingMode !== 'per_day') return null;
+    if (!endForm.endDate || !booking.startDate) return null;
+    const start = new Date(typeof booking.startDate === 'string' ? booking.startDate : booking.startDate._seconds ? new Date(booking.startDate._seconds * 1000) : new Date());
+    const end = new Date(endForm.endDate);
+    const diffMs = end.getTime() - start.getTime();
+    const days = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+    const base = days * (booking.pricePerDay || 0);
+    const disc = Number(endForm.discountAmount) || 0;
+    return { days, base, disc, final: base - disc };
   };
 
   const outsourcedPreview = () => {
@@ -61,7 +75,8 @@ export default function BookingDetailPage() {
     return { payment, comm, commAmt, net: payment - commAmt };
   };
 
-  const calc = preview();
+  const calcKm = previewPerKm();
+  const calcDay = previewPerDay();
   const outsourcedCalc = outsourcedPreview();
 
   const handleComplete = async (e: React.FormEvent) => {
@@ -102,7 +117,13 @@ export default function BookingDetailPage() {
   if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}><div className="spinner" style={{ width: 36, height: 36 }} /></div>;
   if (!booking) return <div className="empty-state"><p>Booking not found</p><Link href="/admin/bookings" className="btn btn-secondary btn-sm">← Back</Link></div>;
 
-  const fmtDate = (ts: any) => ts?._seconds ? new Date(ts._seconds * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+  const fmtDate = (ts: any) => {
+    if (!ts) return '—';
+    if (typeof ts === 'string') return new Date(ts).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    return ts?._seconds ? new Date(ts._seconds * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+  };
+
+  const billingLabel = booking.billingMode === 'per_day' ? '📅 Per Day' : '📏 Per KM';
 
   return (
     <div className="animate-fade">
@@ -113,9 +134,14 @@ export default function BookingDetailPage() {
           <div className="gold-line" />
           <h1 className="page-title">Booking <span style={{ color: 'var(--gold)' }}>{id.slice(0, 8).toUpperCase()}</span></h1>
         </div>
-        <span className={`badge ${booking.status === 'active' ? 'badge-info' : booking.status === 'completed' ? 'badge-success' : 'badge-muted'}`} style={{ fontSize: '0.88rem', padding: '0.4rem 0.8rem' }}>
-          {booking.status}
-        </span>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <span className={`badge ${booking.billingMode === 'per_day' ? 'badge-gold' : 'badge-muted'}`} style={{ fontSize: '0.82rem', padding: '0.35rem 0.7rem' }}>
+            {billingLabel}
+          </span>
+          <span className={`badge ${booking.status === 'active' ? 'badge-info' : booking.status === 'completed' ? 'badge-success' : 'badge-muted'}`} style={{ fontSize: '0.88rem', padding: '0.4rem 0.8rem' }}>
+            {booking.status}
+          </span>
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem' }}>
@@ -140,7 +166,11 @@ export default function BookingDetailPage() {
               <div style={{ fontWeight: 700, fontSize: '1.05rem', marginBottom: '0.25rem' }}>{vehicle.name}</div>
               <div className="vehicle-card-plate" style={{ display: 'inline-block' }}>{vehicle.plate}</div>
               <div style={{ marginTop: '0.5rem', fontSize: '0.82rem' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Rate: </span><span style={{ fontWeight: 600 }}>LKR {vehicle.pricePerKm}/km</span>
+                {booking.billingMode === 'per_day' ? (
+                  <><span style={{ color: 'var(--text-muted)' }}>Rate: </span><span style={{ fontWeight: 600 }}>LKR {vehicle.pricePerDay}/day</span></>
+                ) : (
+                  <><span style={{ color: 'var(--text-muted)' }}>Rate: </span><span style={{ fontWeight: 600 }}>LKR {vehicle.pricePerKm}/km</span></>
+                )}
               </div>
               {booking.isOutsourced && <span className="badge badge-warning" style={{ marginTop: '0.5rem' }}>Outsourced · {booking.commissionRate}% commission</span>}
             </> : <div style={{ color: 'var(--text-muted)' }}>Loading...</div>}
@@ -154,6 +184,7 @@ export default function BookingDetailPage() {
             {[
               ['Start Date', fmtDate(booking.startDate)],
               ['End Date', fmtDate(booking.endDate)],
+              ['Billing Mode', booking.billingMode === 'per_day' ? 'Per Day' : 'Per KM'],
               ['Start Meter', `${booking.startMeterReading?.toLocaleString()} km`],
               ['End Meter', booking.endMeterReading ? `${booking.endMeterReading?.toLocaleString()} km` : '—'],
               ['Total KM', booking.totalKm ? `${booking.totalKm?.toLocaleString()} km` : '—'],
@@ -170,10 +201,10 @@ export default function BookingDetailPage() {
             <div style={{ fontWeight: 700, marginBottom: '0.75rem' }}>Meter Reading History</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
               {meterHistory.slice(0, 6).map(m => (
-                <div key={m.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem 0.75rem', background: 'var(--bg-elevated)', borderRadius: 8, fontSize: '0.82rem' }}>
+                <div key={m.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem 0.75rem', background: 'var(--bg-elevated)', borderRadius: 8, fontSize: '0.82rem', flexWrap: 'wrap', gap: '0.5rem' }}>
                   <span className={`badge ${m.type === 'start' ? 'badge-info' : 'badge-success'}`}>{m.type}</span>
                   <span style={{ fontWeight: 700 }}>{m.reading?.toLocaleString()} km</span>
-                  <span style={{ color: 'var(--text-muted)' }}>{m.recordedAt?._seconds ? new Date(m.recordedAt._seconds * 1000).toLocaleDateString() : '—'}</span>
+                  <span style={{ color: 'var(--text-muted)' }}>{m.recordedAt ? fmtDate(m.recordedAt) : '—'}</span>
                 </div>
               ))}
             </div>
@@ -184,7 +215,7 @@ export default function BookingDetailPage() {
         {booking.status === 'active' && (
           <div className="card">
             <div style={{ fontWeight: 700, marginBottom: '1rem' }}>
-              {booking.isOutsourced ? '💰 Complete — Outsourced Vehicle' : '🏁 Complete Booking & Calculate'}
+              {booking.isOutsourced ? '💰 Complete — Outsourced Vehicle' : booking.billingMode === 'per_day' ? '📅 Complete Booking — Per Day Billing' : '🏁 Complete Booking — Per KM Billing'}
             </div>
             <form onSubmit={handleComplete} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div className="grid-2">
@@ -201,6 +232,15 @@ export default function BookingDetailPage() {
                     <label className="form-label">Commission % (default {booking.commissionRate}%)</label>
                     <input type="number" className="form-input" value={endForm.commissionRate} min={0} max={100} onChange={e => setEndForm({ ...endForm, commissionRate: e.target.value })} />
                   </div>
+                </> : booking.billingMode === 'per_day' ? <>
+                  <div className="form-group">
+                    <label className="form-label">End Meter Reading (km) — optional</label>
+                    <input type="number" className="form-input" placeholder={`> ${booking.startMeterReading}`} value={endForm.endMeterReading} onChange={e => setEndForm({ ...endForm, endMeterReading: e.target.value })} />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Discount (LKR)</label>
+                    <input type="number" className="form-input" placeholder="0" value={endForm.discountAmount} onChange={e => setEndForm({ ...endForm, discountAmount: e.target.value })} />
+                  </div>
                 </> : <>
                   <div className="form-group">
                     <label className="form-label">End Meter Reading (km) *</label>
@@ -214,16 +254,26 @@ export default function BookingDetailPage() {
               </div>
 
               {/* Live preview */}
-              {(calc || outsourcedCalc) && (
+              {(calcKm || calcDay || outsourcedCalc) && (
                 <div style={{ background: '#0f0f0f', border: '1px solid rgba(201,162,39,0.3)', borderRadius: 12, padding: '1rem' }}>
                   <div style={{ fontSize: '0.75rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>Price Preview</div>
-                  {calc && (
+                  {calcKm && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.88rem' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--text-muted)' }}>Distance</span><span>{calc.km.toLocaleString()} km</span></div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--text-muted)' }}>Base ({calc.km} × LKR {booking.pricePerKm})</span><span>LKR {calc.base.toLocaleString()}</span></div>
-                      {calc.disc > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', color: '#22c55e' }}><span>Discount</span><span>- LKR {calc.disc.toLocaleString()}</span></div>}
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--text-muted)' }}>Distance</span><span>{calcKm.km.toLocaleString()} km</span></div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--text-muted)' }}>Base ({calcKm.km} × LKR {booking.pricePerKm})</span><span>LKR {calcKm.base.toLocaleString()}</span></div>
+                      {calcKm.disc > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', color: '#22c55e' }}><span>Discount</span><span>- LKR {calcKm.disc.toLocaleString()}</span></div>}
                       <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: '0.5rem', fontWeight: 700, fontSize: '1rem', color: 'var(--gold)' }}>
-                        <span>Total</span><span>LKR {calc.final.toLocaleString()}</span>
+                        <span>Total</span><span>LKR {calcKm.final.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  )}
+                  {calcDay && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.88rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--text-muted)' }}>Duration</span><span>{calcDay.days} day{calcDay.days > 1 ? 's' : ''}</span></div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--text-muted)' }}>Base ({calcDay.days} × LKR {booking.pricePerDay})</span><span>LKR {calcDay.base.toLocaleString()}</span></div>
+                      {calcDay.disc > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', color: '#22c55e' }}><span>Discount</span><span>- LKR {calcDay.disc.toLocaleString()}</span></div>}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: '0.5rem', fontWeight: 700, fontSize: '1rem', color: 'var(--gold)' }}>
+                        <span>Total</span><span>LKR {calcDay.final.toLocaleString()}</span>
                       </div>
                     </div>
                   )}
