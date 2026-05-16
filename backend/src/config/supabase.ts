@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
+import ws from 'ws';
 
 // Load .env in local dev (Render sets env vars directly in production)
 if (!process.env.SUPABASE_URL) {
@@ -18,10 +19,14 @@ if (!supabaseUrl || !supabaseServiceKey) {
 }
 
 // Service-role client — bypasses RLS (for backend use only)
+// ws transport needed because Node.js 20 lacks native WebSocket
 export const supabase = createClient(supabaseUrl, supabaseServiceKey, {
   auth: {
     autoRefreshToken: false,
     persistSession: false,
+  },
+  realtime: {
+    transport: ws as any,
   },
 });
 
