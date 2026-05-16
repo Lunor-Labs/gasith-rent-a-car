@@ -645,6 +645,27 @@ tbody td { padding: 0.9rem 1rem; font-size: 0.88rem; color: var(--text-primary);
 
   /* Better button sizing on mobile */
   .btn-sm { padding: 0.4rem 0.65rem; font-size: 0.75rem; }
+
+  /* ── Dashboard Stat Cards: 1 column on small phones ── */
+  .grid-4 { grid-template-columns: 1fr !important; }
+
+  /* ── Dashboard Row 3: stack vertically ── */
+  .dashboard-row-3 { grid-template-columns: 1fr !important; }
+
+  /* ── Fleet Activity: simplify to 2-col (vehicle + status) ── */
+  .fleet-col-rate,
+  .fleet-col-plate { display: none !important; }
+
+  .fleet-grid-header,
+  .fleet-grid-row {
+    grid-template-columns: 1fr 80px !important;
+  }
+
+  /* ── Charts: constrain height on mobile ── */
+  .recharts-responsive-container { max-height: 170px !important; }
+
+  /* ── Stat card sparkline: smaller on mobile ── */
+  .stat-card svg { width: 60px !important; }
 }
 
 @media (max-width: 480px) {

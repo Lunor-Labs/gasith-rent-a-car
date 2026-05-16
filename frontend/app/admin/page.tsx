@@ -375,12 +375,12 @@ export default function DashboardPage() {
             </div>
           </div>
           {/* Column headers */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 88px 72px', gap: '0.5rem', padding: '0.25rem 0.5rem', fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.3rem' }}>
-            <span>Vehicle</span><span>Status</span><span>Rate / day</span><span>Plate</span>
+          <div className="fleet-grid-header" style={{ display: 'grid', gridTemplateColumns: '1fr 80px 88px 72px', gap: '0.5rem', padding: '0.25rem 0.5rem', fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.3rem' }}>
+            <span>Vehicle</span><span>Status</span><span className="fleet-col-rate">Rate / day</span><span className="fleet-col-plate">Plate</span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
             {vehicles.map(v => (
-              <div key={v.id} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 88px 72px', gap: '0.5rem', alignItems: 'center', padding: '0.5rem 0.5rem', background: 'var(--bg-elevated)', borderRadius: 9 }}>
+              <div key={v.id} className="fleet-grid-row" style={{ display: 'grid', gridTemplateColumns: '1fr 80px 88px 72px', gap: '0.5rem', alignItems: 'center', padding: '0.5rem 0.5rem', background: 'var(--bg-elevated)', borderRadius: 9 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0 }}>
                   <div style={{ width: 26, height: 26, borderRadius: 7, background: `${STATUS_COLOR[v.status] || '#9a9078'}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <Car size={13} strokeWidth={1.5} color={STATUS_COLOR[v.status] || '#9a9078'} />
@@ -388,10 +388,10 @@ export default function DashboardPage() {
                   <span style={{ fontSize: '0.81rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.name}</span>
                 </div>
                 <StatusPill status={v.status || 'available'} />
-                <span className="num" style={{ fontSize: '0.77rem', fontWeight: 700, color: 'var(--gold)' }}>
+                <span className="num fleet-col-rate" style={{ fontSize: '0.77rem', fontWeight: 700, color: 'var(--gold)' }}>
                   LKR {(v.dailyRate || 0).toLocaleString()}
                 </span>
-                <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'ui-monospace, monospace', letterSpacing: 0 }}>{v.plate}</span>
+                <span className="fleet-col-plate" style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'ui-monospace, monospace', letterSpacing: 0 }}>{v.plate}</span>
               </div>
             ))}
           </div>
