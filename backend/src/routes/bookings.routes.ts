@@ -110,7 +110,7 @@ router.post('/', authMiddleware, async (req, res) => {
       .insert({
         customer_id: customerId,
         vehicle_id: vehicleId,
-        start_date: new Date(startDate).toISOString(),
+        start_date: startDate ? new Date(startDate).toISOString() : new Date().toISOString(),
         end_date: endDate ? new Date(endDate).toISOString() : null,
         start_meter_reading: Number(startMeterReading) || vehicleData?.last_meter_reading || 0,
         end_meter_reading: null,

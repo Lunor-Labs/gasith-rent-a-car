@@ -176,7 +176,7 @@ export default function CustomersPage() {
                     <div className="file-upload" onClick={() => ref.current?.click()}>
                       <input ref={ref} type="file" accept="image/*,application/pdf" onChange={e => setFiles(f => ({ ...f, [key]: e.target.files?.[0] }))} />
                       {(files as any)[key]
-                        ? <div style={{ fontSize: '0.78rem', color: 'var(--gold)' }}>✓ {(files as any)[key].name}</div>
+                        ? <div style={{ fontSize: '0.78rem', color: 'var(--gold)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>✓ {(files as any)[key].name}</div>
                         : <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{label}</div>}
                     </div>
                     {editing && (editing as any)[`${key}Url`] && !(files as any)[key] && (

@@ -2,12 +2,11 @@
 import { useEffect, useState } from 'react';
 import { getDashboardStats, getRevenueStats, getBookings, getVehicles } from '@/lib/api';
 import {
-  ComposedChart, AreaChart, Area, BarChart, Bar, Line,
+  ComposedChart, BarChart, Bar, Line, Area,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell,
 } from 'recharts';
 import {
-  TrendingUp, Car, Users, Gauge, Filter, Plus, ExternalLink,
-  CalendarDays,
+  TrendingUp, Car, Users, Gauge, Plus, ExternalLink,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -15,49 +14,6 @@ type Stats    = { activeBookings: number; totalBookings: number; totalCustomers:
 type Revenue  = { month: string; totalRevenue: number; totalBookings: number; };
 type Booking  = { id: string; customerId: string; vehicleId: string; status: string; finalAmount: number; createdAt: any; };
 type Vehicle  = { id: string; name: string; status: string; dailyRate: number; plate: string; };
-
-// ─── Realistic mock data (SL fleet) ───────────────────────────────────────────
-const MOCK_STATS: Stats = { activeBookings: 18, totalBookings: 186, totalCustomers: 142, totalVehicles: 24, monthRevenue: 2847500 };
-
-const MOCK_REVENUE: Revenue[] = [
-  { month: 'Jan', totalRevenue: 2100000, totalBookings: 14 },
-  { month: 'Feb', totalRevenue: 2350000, totalBookings: 16 },
-  { month: 'Mar', totalRevenue: 2580000, totalBookings: 18 },
-  { month: 'Apr', totalRevenue: 2900000, totalBookings: 20 },
-  { month: 'May', totalRevenue: 2650000, totalBookings: 17 },
-  { month: 'Jun', totalRevenue: 2450000, totalBookings: 16 },
-  { month: 'Jul', totalRevenue: 2800000, totalBookings: 19 },
-  { month: 'Aug', totalRevenue: 3100000, totalBookings: 22 },
-  { month: 'Sep', totalRevenue: 2950000, totalBookings: 21 },
-  { month: 'Oct', totalRevenue: 2200000, totalBookings: 15 },
-  { month: 'Nov', totalRevenue: 2700000, totalBookings: 18 },
-  { month: 'Dec', totalRevenue: 2847500, totalBookings: 18 },
-];
-
-const MOCK_BOOKINGS: Booking[] = [
-  { id: 'bk001', customerId: 'Nadesha Wijesinghe', vehicleId: 'Toyota Aqua',   status: 'confirmed', finalAmount: 19500, createdAt: { _seconds: Date.now()/1000 - 300    } },
-  { id: 'bk002', customerId: 'Kasun Perera',        vehicleId: 'Suzuki Alto',   status: 'active',    finalAmount: 13500, createdAt: { _seconds: Date.now()/1000 - 3600   } },
-  { id: 'bk003', customerId: 'Amani Fernando',      vehicleId: 'Honda Fit',     status: 'pending',   finalAmount: 24000, createdAt: { _seconds: Date.now()/1000 - 7200   } },
-  { id: 'bk004', customerId: 'Sahan Jayawardena',   vehicleId: 'Toyota Prius',  status: 'completed', finalAmount: 36000, createdAt: { _seconds: Date.now()/1000 - 86400  } },
-  { id: 'bk005', customerId: 'Dilini Rajapaksa',    vehicleId: 'Honda Vezel',   status: 'active',    finalAmount: 25500, createdAt: { _seconds: Date.now()/1000 - 172800 } },
-];
-
-const MOCK_VEHICLES: Vehicle[] = [
-  { id: '1', name: 'Suzuki Alto',    status: 'active',      dailyRate: 4500, plate: 'WP-CBE-0241' },
-  { id: '2', name: 'Toyota Aqua',   status: 'available',   dailyRate: 7500, plate: 'CAR-3892'    },
-  { id: '3', name: 'Honda Fit',     status: 'active',      dailyRate: 6000, plate: 'NB-2341'     },
-  { id: '4', name: 'Suzuki Wagon R',status: 'maintenance', dailyRate: 5000, plate: 'YZ-1122'     },
-  { id: '5', name: 'Toyota Prius',  status: 'available',   dailyRate: 9000, plate: 'AB-7894'     },
-  { id: '6', name: 'Honda Vezel',   status: 'active',      dailyRate: 8500, plate: 'WP-KA-4512'  },
-];
-
-const QUICK_TASKS = [
-  { label: 'Review 3 new booking requests',      done: false, urgent: true  },
-  { label: 'Update vehicle meter readings',       done: true,  urgent: false },
-  { label: 'Send pending invoices via WhatsApp',  done: false, urgent: false },
-  { label: 'Check vehicle maintenance due',       done: true,  urgent: false },
-  { label: 'Verify customer documents',           done: false, urgent: false },
-];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const STATUS_COLOR: Record<string, string> = {
@@ -134,22 +90,16 @@ export default function DashboardPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading,  setLoading]  = useState(true);
-  const [tasks,    setTasks]    = useState(QUICK_TASKS);
   const [range,    setRange]    = useState<'7d' | '30d' | '12m'>('12m');
 
   useEffect(() => {
     Promise.allSettled([
       getDashboardStats(), getRevenueStats(), getBookings({ limit: 5 }), getVehicles({ limit: 6 }),
     ]).then(([s, r, b, v]) => {
-      const st = s.status === 'fulfilled' ? s.value.data : null;
-      const rv = r.status === 'fulfilled' ? [...r.value.data].reverse() : [];
-      const bk = b.status === 'fulfilled' ? b.value.data : [];
-      const vh = v.status === 'fulfilled' ? v.value.data : [];
-      // fall back to realistic mock data when API returns empty / zero
-      setStats(st?.totalVehicles ? st : MOCK_STATS);
-      setRevenue(rv.length ? rv : MOCK_REVENUE);
-      setBookings(bk.length  ? bk : MOCK_BOOKINGS);
-      setVehicles(vh.length  ? vh : MOCK_VEHICLES);
+      setStats(s.status === 'fulfilled' ? s.value.data : { activeBookings: 0, totalBookings: 0, totalCustomers: 0, totalVehicles: 0, monthRevenue: 0 });
+      setRevenue(r.status === 'fulfilled' ? [...r.value.data].reverse() : []);
+      setBookings(b.status === 'fulfilled' ? b.value.data : []);
+      setVehicles(v.status === 'fulfilled' ? v.value.data : []);
     }).finally(() => setLoading(false));
   }, []);
 
@@ -157,45 +107,51 @@ export default function DashboardPage() {
   const chartData = (range === '7d' ? revenue.slice(-3) : range === '30d' ? revenue.slice(-6) : revenue)
     .map(r => ({ ...r, target: Math.round(r.totalRevenue * 1.05) }));
 
-  const total12m   = revenue.reduce((s, r) => s + r.totalRevenue, 0);
-  const sparkData  = revenue.slice(-7).map(r => r.totalRevenue);
-  const utilPct    = Math.min(100, Math.round(((stats?.activeBookings ?? 0) / Math.max(1, stats?.totalVehicles ?? 1)) * 100));
+  const total12m      = revenue.reduce((s, r) => s + r.totalRevenue, 0);
+  const revSparkData  = revenue.slice(-7).map(r => r.totalRevenue);
+  const bkSparkData   = revenue.slice(-7).map(r => r.totalBookings);
+  const utilPct       = Math.min(100, Math.round(((stats?.activeBookings ?? 0) / Math.max(1, stats?.totalVehicles ?? 1)) * 100));
 
-  const weeklyBarData = revenue.slice(-7).map((r, i) => ({
-    day: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i % 7],
-    bookings: r.totalBookings,
+  // Monthly bookings bar chart (real revenue data)
+  const monthlyBarData = revenue.slice(-7).map(r => ({
+    month: r.month?.slice(5) || '',
+    bookings: r.totalBookings || 0,
   }));
+  const monthlyTotal = monthlyBarData.reduce((s, d) => s + d.bookings, 0);
 
-  const weeklyTotal = weeklyBarData.reduce((s, d) => s + d.bookings, 0);
+  // Revenue trend (compare last 2 months if available)
+  const revTrend = revenue.length >= 2 ? (() => {
+    const curr = revenue[revenue.length - 1]?.totalRevenue || 0;
+    const prev = revenue[revenue.length - 2]?.totalRevenue || 0;
+    if (prev === 0) return null;
+    const pct = ((curr - prev) / prev * 100).toFixed(1);
+    return { pct, positive: curr >= prev };
+  })() : null;
 
   const STAT_CARDS = [
     {
       label: 'Revenue (MTD)', Icon: TrendingUp, iconColor: '#3b82f6',
       value: fmtM(stats?.monthRevenue ?? 0), prefix: 'LKR',
-      sub: `LKR ${fmtM((stats?.monthRevenue ?? 0) * 0.88)} Last MTD`,
-      trend: '+12.4%', trendColor: '#22c55e',
-      spark: sparkData, sparkColor: '#3b82f6',
+      sub: `${stats?.totalBookings ?? 0} total bookings`,
+      spark: revSparkData, sparkColor: '#3b82f6',
     },
     {
       label: 'Active Rentals', Icon: Car, iconColor: '#22c55e',
       value: String(stats?.activeBookings ?? 0), prefix: null,
-      sub: `${Math.max(0, (stats?.activeBookings ?? 0) - 3)} returns pending`,
-      trend: '+3', trendColor: '#22c55e',
-      spark: weeklyBarData.map(d => d.bookings), sparkColor: '#22c55e',
+      sub: `of ${stats?.totalVehicles ?? 0} vehicles`,
+      spark: bkSparkData, sparkColor: '#22c55e',
     },
     {
       label: 'Total Customers', Icon: Users, iconColor: '#a855f7',
       value: String(stats?.totalCustomers ?? 0), prefix: null,
-      sub: `${Math.round((stats?.totalCustomers ?? 0) * 0.08)} new this month`,
-      trend: '+8.2%', trendColor: '#22c55e',
-      spark: sparkData.map((v, i) => Math.round(v / 18000 + i * 3)), sparkColor: '#a855f7',
+      sub: 'registered customers',
+      spark: revSparkData, sparkColor: '#a855f7',
     },
     {
       label: 'Fleet Utilisation', Icon: Gauge, iconColor: '#ef4444',
       value: `${utilPct}%`, prefix: null,
       sub: `${stats?.activeBookings ?? 0} of ${stats?.totalVehicles ?? 0} vehicles`,
-      trend: '+2.1%', trendColor: '#22c55e',
-      spark: sparkData.map(v => Math.min(100, Math.round(v / 40000))), sparkColor: '#ef4444',
+      spark: bkSparkData, sparkColor: '#ef4444',
     },
   ];
 
@@ -213,14 +169,14 @@ export default function DashboardPage() {
         <div>
           <h1 className="page-title">Dashboard</h1>
           <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: 4 }}>
-            Welcome back, Imdinesh — here's your fleet at a glance.
+            Here&apos;s your fleet at a glance.
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <a href="/" target="_blank" className="btn btn-secondary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
             <ExternalLink size={13} strokeWidth={1.5} /> View Site
           </a>
-          <a href="/admin/bookings/new" className="btn btn-primary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+          <a href="/admin/bookings" className="btn btn-primary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
             <Plus size={14} strokeWidth={2} /> New Booking
           </a>
         </div>
@@ -228,9 +184,8 @@ export default function DashboardPage() {
 
       {/* ── Stat cards ──────────────────────────────────────────────── */}
       <div className="grid-4" style={{ marginBottom: '1.5rem' }}>
-        {STAT_CARDS.map(({ label, Icon, iconColor, value, prefix, sub, trend, trendColor, spark, sparkColor }, i) => (
+        {STAT_CARDS.map(({ label, Icon, iconColor, value, prefix, sub, spark, sparkColor }, i) => (
           <div key={i} className="stat-card" style={{ flexDirection: 'column', gap: 0, padding: '1.2rem 1.35rem' }}>
-            {/* Top row */}
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <div style={{ width: 32, height: 32, borderRadius: 8, background: `${iconColor}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -240,23 +195,16 @@ export default function DashboardPage() {
               </div>
               <Sparkline data={spark} color={sparkColor} />
             </div>
-            {/* Value */}
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.15rem', marginBottom: '0.3rem' }}>
               {prefix && <span className="currency-prefix">{prefix}</span>}
               <span className="num" style={{ fontSize: '1.7rem', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1 }}>{value}</span>
             </div>
-            {/* Delta + sub */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '0.68rem', fontWeight: 700, color: trendColor, background: `${trendColor}1a`, padding: '0.13rem 0.48rem', borderRadius: 99 }}>
-                ↑ {trend}
-              </span>
-              <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{sub}</span>
-            </div>
+            <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{sub}</span>
           </div>
         ))}
       </div>
 
-      {/* ── Row 2: Revenue Trend + Weekly Bookings ──────────────────── */}
+      {/* ── Row 2: Revenue Trend + Monthly Bookings ──────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.25rem', marginBottom: '1.25rem' }} className="dashboard-row-2">
 
         {/* Revenue Trend */}
@@ -264,9 +212,10 @@ export default function DashboardPage() {
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '0.85rem', flexWrap: 'wrap', gap: '0.5rem' }}>
             <div>
               <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>Revenue Trend</div>
-              <div style={{ fontSize: '0.71rem', color: 'var(--text-muted)', marginTop: 2 }}>Last 12 months · On target</div>
+              <div style={{ fontSize: '0.71rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                {revenue.length > 0 ? `Last ${revenue.length} months` : 'No data yet'}
+              </div>
             </div>
-            {/* Range toggle */}
             <div style={{ display: 'flex', background: 'var(--bg-elevated)', borderRadius: 8, padding: '0.18rem' }}>
               {(['7d', '30d', '12m'] as const).map(r => (
                 <button key={r} onClick={() => setRange(r)} style={{
@@ -289,10 +238,17 @@ export default function DashboardPage() {
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.35rem', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '0.71rem', fontWeight: 700, color: '#22c55e', background: 'rgba(34,197,94,0.12)', padding: '0.16rem 0.5rem', borderRadius: 99 }}>
-                ↑ +18.6%
-              </span>
-              <span style={{ fontSize: '0.71rem', color: 'var(--text-muted)' }}>vs prior 12m</span>
+              {revTrend && (
+                <span style={{
+                  fontSize: '0.71rem', fontWeight: 700,
+                  color: revTrend.positive ? '#22c55e' : '#ef4444',
+                  background: revTrend.positive ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)',
+                  padding: '0.16rem 0.5rem', borderRadius: 99,
+                }}>
+                  {revTrend.positive ? '↑' : '↓'} {revTrend.positive ? '+' : ''}{revTrend.pct}%
+                </span>
+              )}
+              {revTrend && <span style={{ fontSize: '0.71rem', color: 'var(--text-muted)' }}>vs prior month</span>}
               <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.75rem', fontSize: '0.68rem', color: 'var(--text-muted)', alignItems: 'center' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
                   <span style={{ width: 14, height: 2, background: 'var(--gold)', display: 'inline-block', borderRadius: 1 }} /> Revenue
@@ -304,7 +260,6 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Chart — area + dashed target */}
           {chartData.length > 0 ? (
             <ResponsiveContainer width="100%" height={200}>
               <ComposedChart data={chartData} margin={{ top: 5, right: 5, bottom: 0, left: 0 }}>
@@ -318,8 +273,8 @@ export default function DashboardPage() {
                 <XAxis dataKey="month" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
                 <YAxis hide />
                 <Tooltip content={<RevTooltip />} />
-                <Area   type="monotone" dataKey="totalRevenue" stroke="var(--gold)"      strokeWidth={2}   fill="url(#rvGrad)"                  dot={false} activeDot={{ r: 4, fill: 'var(--gold)' }} />
-                <Line   type="monotone" dataKey="target"       stroke="var(--gold)"      strokeWidth={1.5} strokeDasharray="5 5" strokeOpacity={0.4} dot={false} />
+                <Area type="monotone" dataKey="totalRevenue" stroke="var(--gold)" strokeWidth={2} fill="url(#rvGrad)" dot={false} activeDot={{ r: 4, fill: 'var(--gold)' }} />
+                <Line type="monotone" dataKey="target" stroke="var(--gold)" strokeWidth={1.5} strokeDasharray="5 5" strokeOpacity={0.4} dot={false} />
               </ComposedChart>
             </ResponsiveContainer>
           ) : (
@@ -327,26 +282,25 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Weekly Bookings */}
+        {/* Monthly Bookings */}
         <div className="card">
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-            <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>Weekly Bookings</div>
-            <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#22c55e', background: 'rgba(34,197,94,0.12)', padding: '0.16rem 0.5rem', borderRadius: 99 }}>+22%</span>
+            <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>Monthly Bookings</div>
           </div>
           <div style={{ marginBottom: '0.85rem' }}>
-            <span className="num" style={{ fontSize: '2.2rem', fontWeight: 800, lineHeight: 1, color: 'var(--text-primary)', display: 'block' }}>{weeklyTotal}</span>
-            <span style={{ fontSize: '0.71rem', color: 'var(--text-muted)', marginTop: '0.3rem', display: 'block' }}>bookings this week</span>
+            <span className="num" style={{ fontSize: '2.2rem', fontWeight: 800, lineHeight: 1, color: 'var(--text-primary)', display: 'block' }}>{monthlyTotal}</span>
+            <span style={{ fontSize: '0.71rem', color: 'var(--text-muted)', marginTop: '0.3rem', display: 'block' }}>bookings in recent months</span>
           </div>
-          {weeklyBarData.length > 0 ? (
+          {monthlyBarData.length > 0 ? (
             <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={weeklyBarData} margin={{ top: 5, right: 5, bottom: 0, left: 0 }}>
+              <BarChart data={monthlyBarData} margin={{ top: 5, right: 5, bottom: 0, left: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
-                <XAxis dataKey="day" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
+                <XAxis dataKey="month" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
                 <YAxis hide />
                 <Tooltip formatter={(v: any) => [v, 'Bookings']} contentStyle={{ background: '#1c1b1b', border: '1px solid #4e4633', borderRadius: 10, fontSize: '0.76rem' }} />
                 <Bar dataKey="bookings" radius={[5, 5, 0, 0]} maxBarSize={30}>
-                  {weeklyBarData.map((_, idx) => (
-                    <Cell key={idx} fill={idx === weeklyBarData.length - 2 ? 'var(--gold)' : 'var(--bg-elevated)'} />
+                  {monthlyBarData.map((_, idx) => (
+                    <Cell key={idx} fill={idx === monthlyBarData.length - 1 ? 'var(--gold)' : 'var(--bg-elevated)'} />
                   ))}
                 </Bar>
               </BarChart>
@@ -357,7 +311,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ── Row 3: Fleet Activity + Recent Bookings + Quick Tasks ────── */}
+      {/* ── Row 3: Fleet Activity + Recent Bookings ────── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.25rem' }} className="dashboard-row-3">
 
         {/* Fleet Activity */}
@@ -367,19 +321,13 @@ export default function DashboardPage() {
               <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>Fleet Activity</div>
               <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 2 }}>Latest status across your vehicles</div>
             </div>
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              <button style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.3rem 0.65rem', fontSize: '0.72rem', fontWeight: 600, background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 7, cursor: 'pointer', color: 'var(--text-secondary)' }}>
-                <Filter size={12} strokeWidth={1.5} /> Filter
-              </button>
-              <a href="/admin/vehicles" style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)', textDecoration: 'none' }}>View all →</a>
-            </div>
+            <a href="/admin/vehicles" style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)', textDecoration: 'none' }}>View all →</a>
           </div>
-          {/* Column headers */}
           <div className="fleet-grid-header" style={{ display: 'grid', gridTemplateColumns: '1fr 80px 88px 72px', gap: '0.5rem', padding: '0.25rem 0.5rem', fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.3rem' }}>
             <span>Vehicle</span><span>Status</span><span className="fleet-col-rate">Rate / day</span><span className="fleet-col-plate">Plate</span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-            {vehicles.map(v => (
+            {vehicles.length > 0 ? vehicles.map(v => (
               <div key={v.id} className="fleet-grid-row" style={{ display: 'grid', gridTemplateColumns: '1fr 80px 88px 72px', gap: '0.5rem', alignItems: 'center', padding: '0.5rem 0.5rem', background: 'var(--bg-elevated)', borderRadius: 9 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0 }}>
                   <div style={{ width: 26, height: 26, borderRadius: 7, background: `${STATUS_COLOR[v.status] || '#9a9078'}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -393,7 +341,9 @@ export default function DashboardPage() {
                 </span>
                 <span className="fleet-col-plate" style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'ui-monospace, monospace', letterSpacing: 0 }}>{v.plate}</span>
               </div>
-            ))}
+            )) : (
+              <div className="empty-state" style={{ padding: '2rem' }}><p>No vehicles yet</p></div>
+            )}
           </div>
         </div>
 
@@ -407,10 +357,10 @@ export default function DashboardPage() {
             <a href="/admin/bookings" style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)', textDecoration: 'none' }}>View all →</a>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {bookings.slice(0, 5).map(b => {
+            {bookings.length > 0 ? bookings.slice(0, 5).map(b => {
               const c = STATUS_COLOR[b.status] || '#9a9078';
               const initials = (b.customerId || 'CU').slice(0, 2).toUpperCase();
-              const ago = b.createdAt?._seconds ? timeAgo(b.createdAt._seconds) : '—';
+              const ago = b.createdAt?._seconds ? timeAgo(b.createdAt._seconds) : (b.createdAt ? timeAgo(new Date(b.createdAt).getTime() / 1000) : '—');
               return (
                 <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', padding: '0.6rem 0', borderBottom: '1px solid var(--border-subtle)' }}>
                   <div style={{ width: 34, height: 34, borderRadius: 9, background: `${c}20`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 700, color: c, flexShrink: 0 }}>
@@ -432,45 +382,9 @@ export default function DashboardPage() {
                   </div>
                 </div>
               );
-            })}
-          </div>
-        </div>
-
-        {/* Quick Tasks */}
-        <div className="card">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.9rem' }}>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>Quick Tasks</div>
-              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 2 }}>
-                {tasks.filter(t => !t.done).length} pending
-              </div>
-            </div>
-            <button style={{ display: 'flex', alignItems: 'center', gap: '0.28rem', padding: '0.3rem 0.65rem', fontSize: '0.72rem', fontWeight: 600, background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 7, cursor: 'pointer', color: 'var(--text-secondary)' }}>
-              <Plus size={12} strokeWidth={2} /> Add task
-            </button>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {tasks.map((task, i) => (
-              <label key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', padding: '0.62rem 0', borderBottom: '1px solid var(--border-subtle)', cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={task.done}
-                  onChange={() => setTasks(t => t.map((x, j) => j === i ? { ...x, done: !x.done } : x))}
-                  style={{ width: 15, height: 15, accentColor: 'var(--gold)', flexShrink: 0 }}
-                />
-                <span style={{ flex: 1, fontSize: '0.82rem', fontWeight: 500, color: task.done ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: task.done ? 'line-through' : 'none', transition: 'color 0.15s' }}>
-                  {task.label}
-                </span>
-                {task.urgent && !task.done && (
-                  <span style={{ fontSize: '0.62rem', fontWeight: 700, color: '#ef4444', background: 'rgba(239,68,68,0.15)', padding: '0.13rem 0.45rem', borderRadius: 99, flexShrink: 0, letterSpacing: '0.03em' }}>
-                    URGENT
-                  </span>
-                )}
-              </label>
-            ))}
-          </div>
-          <div style={{ marginTop: '0.8rem', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-            {tasks.filter(t => t.done).length}/{tasks.length} completed
+            }) : (
+              <div className="empty-state" style={{ padding: '2rem' }}><p>No bookings yet</p></div>
+            )}
           </div>
         </div>
       </div>

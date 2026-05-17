@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -8,7 +8,7 @@ import { getDashboardStats } from '@/lib/api';
 import toast from 'react-hot-toast';
 import {
   LayoutGrid, Car, Users, CalendarDays, Receipt,
-  BarChart2, Settings, Bell, Search, Globe, LogOut, Menu,
+  Settings, LogOut, Menu,
 } from 'lucide-react';
 
 const MAIN_NAV = [
@@ -20,7 +20,6 @@ const MAIN_NAV = [
 ];
 
 const WORKSPACE_NAV = [
-  { label: 'Reports',  href: '/admin/reports',  Icon: BarChart2, exact: false },
   { label: 'Settings', href: '/admin/settings', Icon: Settings,  exact: false },
 ];
 
@@ -29,9 +28,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
   const [navCounts, setNavCounts] = useState<Record<string, number>>({});
-  const mainRef = useRef<HTMLElement>(null);
 
   const isActive = (item: { href: string; exact: boolean }) =>
     item.exact ? pathname === item.href : pathname.startsWith(item.href);
@@ -51,11 +48,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
   }, [user]);
 
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 1);
-    window.addEventListener('scroll', onScroll);
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
+
 
   const handleLogout = async () => {
     await logout();
@@ -72,9 +65,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   if (!user) return null;
 
   const initials = user.email?.slice(0, 2).toUpperCase() ?? 'AD';
-
-  // Current month label for topbar chip
-  const monthLabel = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
   return (
     <div className="admin-layout">
@@ -134,7 +124,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </aside>
 
       {/* ── Main ── */}
-      <main className="admin-main" ref={mainRef}>
+      <main className="admin-main">
         {/* Mobile topbar */}
         <div className="topbar">
           <button className="menu-btn" onClick={() => setSidebarOpen(true)}>
@@ -144,30 +134,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <a href="/" target="_blank" style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>View Site</a>
         </div>
 
-        {/* Floating glass topbar */}
-        <div className={`admin-topbar-float ${scrolled ? 'scrolled' : ''}`}>
-          <div className="topbar-breadcrumb">
-            <div className="topbar-breadcrumb-trail">
-              <a href="/admin">Pages</a>
-              <span>/</span>
-              <span style={{ color: 'var(--text-secondary)' }}>{currentPage}</span>
-            </div>
-            <div className="topbar-page-title">{currentPage}</div>
-          </div>
 
-          <div className="topbar-right">
-            <div className="topbar-date-chip">
-              <CalendarDays size={13} strokeWidth={1.5} />
-              {monthLabel}
-            </div>
-            <div className="topbar-actions">
-              <button className="topbar-action-btn" title="Search"><Search size={14} strokeWidth={1.5} /></button>
-              <button className="topbar-action-btn" title="Notifications"><Bell size={14} strokeWidth={1.5} /></button>
-              <a href="/" target="_blank" className="topbar-action-btn" title="View Site"><Globe size={14} strokeWidth={1.5} /></a>
-              <div className="topbar-avatar" onClick={handleLogout} title="Logout">{initials}</div>
-            </div>
-          </div>
-        </div>
 
         {/* Content */}
         <div className="admin-content">{children}</div>

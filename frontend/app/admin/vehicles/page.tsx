@@ -9,7 +9,7 @@ type Vehicle = {
   commissionRate: number; lastMeterReading: number; isAvailable: boolean; showOnLanding: boolean;
 };
 
-const EMPTY = { name: '', type: 'Sedan', plate: '', pricePerKm: 0, pricePerDay: 0, isOutsourced: false, commissionRate: 10, lastMeterReading: 0, isAvailable: true, showOnLanding: false };
+const EMPTY = { name: '', type: 'Sedan', plate: '', pricePerKm: 0, pricePerDay: 0, isOutsourced: false, commissionRate: 10, initialMeterReading: 0, isAvailable: true, showOnLanding: false };
 const TYPES = ['Sedan', 'SUV', 'Van', 'Bus', 'Truck', 'Motorbike', 'Other'];
 
 export default function VehiclesPage() {
@@ -27,7 +27,7 @@ export default function VehiclesPage() {
   useEffect(() => { load(); }, []);
 
   const openCreate = () => { setEditing(null); setForm({ ...EMPTY }); setImageFile(null); setModalOpen(true); };
-  const openEdit = (v: Vehicle) => { setEditing(v); setForm({ ...v }); setImageFile(null); setModalOpen(true); };
+  const openEdit = (v: Vehicle) => { setEditing(v); setForm({ ...v, initialMeterReading: v.lastMeterReading ?? 0 }); setImageFile(null); setModalOpen(true); };
   const closeModal = () => { setModalOpen(false); setEditing(null); };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -115,7 +115,7 @@ export default function VehiclesPage() {
                   </select>
                 </div>
                 <div className="form-group"><label className="form-label">Plate *</label><input className="form-input" placeholder="WP-CAB-1234" value={form.plate} onChange={e => setForm({ ...form, plate: e.target.value })} required /></div>
-                <div className="form-group"><label className="form-label">Meter (km)</label><input type="number" className="form-input" value={form.lastMeterReading} onChange={e => setForm({ ...form, lastMeterReading: e.target.value })} /></div>
+                <div className="form-group"><label className="form-label">Meter (km)</label><input type="number" className="form-input" value={form.initialMeterReading} onChange={e => setForm({ ...form, initialMeterReading: e.target.value })} /></div>
                 <div className="form-group"><label className="form-label">LKR / km</label><input type="number" className="form-input" value={form.pricePerKm} onChange={e => setForm({ ...form, pricePerKm: e.target.value })} /></div>
                 <div className="form-group"><label className="form-label">LKR / day</label><input type="number" className="form-input" value={form.pricePerDay} onChange={e => setForm({ ...form, pricePerDay: e.target.value })} /></div>
               </div>

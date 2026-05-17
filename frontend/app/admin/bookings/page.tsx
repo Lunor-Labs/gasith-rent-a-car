@@ -191,7 +191,7 @@ export default function BookingsPage() {
                     <button
                       key={opt.value}
                       type="button"
-                      onClick={() => setForm({ ...form, billingMode: opt.value })}
+                      onClick={() => setForm({ ...form, billingMode: opt.value, startDate: opt.value === 'per_km' ? '' : form.startDate })}
                       style={{
                         flex: 1, padding: '0.6rem 0.75rem', fontSize: '0.82rem', fontWeight: 600,
                         border: 'none', cursor: 'pointer', borderRadius: 6,
@@ -206,10 +206,12 @@ export default function BookingsPage() {
                   ))}
                 </div>
               </div>
-              <div className="form-group">
-                <label className="form-label">Start Date *</label>
-                <input type="date" className="form-input" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} required />
-              </div>
+              {form.billingMode === 'per_day' && (
+                <div className="form-group">
+                  <label className="form-label">Start Date *</label>
+                  <input type="date" className="form-input" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} required />
+                </div>
+              )}
               <div className="form-group">
                 <label className="form-label">Notes</label>
                 <textarea className="form-textarea" rows={2} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} placeholder="Optional notes..." style={{ minHeight: 60 }} />

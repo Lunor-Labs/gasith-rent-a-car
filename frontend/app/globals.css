@@ -121,6 +121,8 @@ a { text-decoration: none; color: inherit; }
   border-radius: 20px;
   padding: 1.5rem;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  overflow: hidden;
+  min-width: 0;
 }
 .card:hover { box-shadow: 0 8px 30px rgba(0,0,0,0.25); }
 
@@ -174,6 +176,7 @@ tbody td { padding: 0.9rem 1rem; font-size: 0.88rem; color: var(--text-primary);
   display: flex; align-items: flex-start; gap: 1.1rem;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   position: relative; overflow: hidden;
+  min-width: 0;
 }
 .stat-card:hover {
   transform: translateY(-3px);
@@ -208,6 +211,7 @@ tbody td { padding: 0.9rem 1rem; font-size: 0.88rem; color: var(--text-primary);
   border-radius: var(--radius-xl); width: 100%; max-width: 560px;
   padding: 1.5rem; margin: auto; position: relative;
   animation: slideUp 0.25s ease;
+  overflow: hidden;
 }
 .modal-lg { max-width: 780px; }
 .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
@@ -226,7 +230,7 @@ tbody td { padding: 0.9rem 1rem; font-size: 0.88rem; color: var(--text-primary);
   to { transform: rotate(360deg); }
 }
 .animate-spin { animation: spin 0.8s linear infinite; }
-.animate-fade { animation: fadeIn 0.3s ease; }
+.animate-fade { animation: fadeIn 0.3s ease; max-width: 100%; overflow-x: hidden; }
 
 /* ─── Loading Spinner ─────────────────────────────────────────────────────── */
 .spinner {
@@ -241,8 +245,10 @@ tbody td { padding: 0.9rem 1rem; font-size: 0.88rem; color: var(--text-primary);
 /* ─── File Upload ─────────────────────────────────────────────────────────── */
 .file-upload {
   border: 2px dashed var(--border); border-radius: var(--radius-md);
-  padding: 1.5rem; text-align: center; cursor: pointer;
+  padding: 1rem; text-align: center; cursor: pointer;
   transition: border-color 0.2s, background 0.2s;
+  overflow: hidden; min-width: 0; max-width: 100%;
+  word-break: break-all; box-sizing: border-box;
 }
 .file-upload:hover { border-color: var(--gold); background: rgba(201,162,39,0.04); }
 .file-upload input { display: none; }
@@ -251,6 +257,7 @@ tbody td { padding: 0.9rem 1rem; font-size: 0.88rem; color: var(--text-primary);
 .grid-2 { display: grid; grid-template-columns: 1fr; gap: 1rem; }
 .grid-3 { display: grid; grid-template-columns: 1fr; gap: 1rem; }
 .grid-4 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+.grid-2 > *, .grid-3 > *, .grid-4 > * { min-width: 0; }
 
 /* ── Dashboard widget rows ── */
 .dashboard-row-2 { grid-template-columns: 1fr !important; }
@@ -267,8 +274,8 @@ tbody td { padding: 0.9rem 1rem; font-size: 0.88rem; color: var(--text-primary);
   .grid-4 { grid-template-columns: repeat(4, 1fr); }
   /* Row 2: total-revenue area + weekly bar side by side */
   .dashboard-row-2 { grid-template-columns: 1.6fr 1fr !important; }
-  /* Row 3: fleet pie + booking pie + tasks */
-  .dashboard-row-3 { grid-template-columns: repeat(3, 1fr) !important; }
+  /* Row 3: fleet + bookings (Quick Tasks removed) */
+  .dashboard-row-3 { grid-template-columns: repeat(2, 1fr) !important; }
   /* Row 4: fleet list + bookings table (table spans full on md) */
   .dashboard-row-4 { grid-template-columns: 300px 1fr !important; }
 }
@@ -569,6 +576,7 @@ tbody td { padding: 0.9rem 1rem; font-size: 0.88rem; color: var(--text-primary);
 /* ── Content area padding ── */
 .admin-content {
   padding: 1.25rem 1rem 2rem;
+  overflow-x: hidden;
 }
 
 @media (min-width: 768px) {
@@ -576,11 +584,10 @@ tbody td { padding: 0.9rem 1rem; font-size: 0.88rem; color: var(--text-primary);
   .menu-btn { display: none; }
   .admin-main { margin-left: 280px; }
   .topbar { display: none; }
-  .admin-topbar-float { display: flex; }
-  .admin-content { padding: calc(64px + 32px) 1.75rem 2rem; }
+  .admin-content { padding: 1.75rem 1.75rem 2rem; }
 }
 @media (min-width: 1280px) {
-  .admin-content { padding: calc(64px + 32px) 2rem 2rem; }
+  .admin-content { padding: 1.75rem 2rem 2rem; }
 }
 
 /* ─── Vehicle Card ────────────────────────────────────────────────────────── */
