@@ -69,6 +69,8 @@ router.post('/generate/:bookingId', authMiddleware, async (req, res) => {
       endMeterReading: booking.end_meter_reading,
       totalKm: booking.total_km,
       pricePerKm: booking.price_per_km,
+      pricePerDay: booking.price_per_day,
+      billingMode: booking.billing_mode,
       baseAmount: booking.base_amount,
       discountAmount: booking.discount_amount,
       finalAmount: booking.final_amount,
