@@ -9,7 +9,7 @@ import { getDashboardStats } from '@/lib/api';
 import toast from 'react-hot-toast';
 import {
   LayoutGrid, Car, Users, CalendarDays, Receipt,
-  Settings, LogOut, Menu, Sun, Moon,
+  Settings, LogOut, Menu, Sun, Moon, Bell, Search,
 } from 'lucide-react';
 
 const MAIN_NAV = [
@@ -30,7 +30,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [navCounts, setNavCounts] = useState<Record<string, number>>({});
+  const [scrolled, setScrolled] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const { theme, toggleTheme } = useTheme();
+
+  useEffect(() => { setSearchQuery(''); }, [pathname]);
+
+  useEffect(() => {
+    const handler = () => setScrolled(window.scrollY > 10);
+    window.addEventListener('scroll', handler, { passive: true });
+    return () => window.removeEventListener('scroll', handler);
+  }, []);
 
   const isActive = (item: { href: string; exact: boolean }) =>
     item.exact ? pathname === item.href : pathname.startsWith(item.href);
@@ -67,6 +77,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   if (!user) return null;
 
   const initials = user.email?.slice(0, 2).toUpperCase() ?? 'AD';
+  const rawName = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'Admin';
+  const displayName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
 
   return (
     <div className="admin-layout">
@@ -115,13 +127,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           ))}
         </nav>
 
-        {/* User row — no upgrade card */}
+        {/* User row */}
         <div className="sidebar-user-row">
           <div className="sidebar-user-avatar">{initials}</div>
-          <div className="sidebar-user-email">{user.email}</div>
-          <button onClick={toggleTheme} className="topbar-action-btn" title="Toggle theme" style={{ flexShrink: 0 }}>
-            {theme === 'dark' ? <Sun size={14} strokeWidth={1.5} /> : <Moon size={14} strokeWidth={1.5} />}
-          </button>
+          <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+            <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {displayName}
+            </div>
+            <div style={{ fontSize: '0.66rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {user.email}
+            </div>
+          </div>
           <button onClick={handleLogout} className="topbar-action-btn" title="Logout" style={{ flexShrink: 0 }}>
             <LogOut size={14} strokeWidth={1.5} />
           </button>
@@ -142,7 +158,57 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <a href="/" target="_blank" style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>View Site</a>
         </div>
 
+        {/* Mobile search bar */}
+        <div className="responsive-show-mobile" style={{ padding: '0.6rem 1rem 0.75rem', gap: 0 }}>
+          <div className="topbar-search" style={{ width: '100%' }}>
+            <Search size={13} strokeWidth={1.5} style={{ flexShrink: 0, color: 'var(--text-muted)' }} />
+            <input
+              value={searchQuery}
+              onChange={e => {
+                const v = e.target.value;
+                setSearchQuery(v);
+                router.replace(v ? `${pathname}?q=${encodeURIComponent(v)}` : pathname);
+              }}
+              placeholder={`Search ${{ Vehicles: 'by name or plate', Customers: 'by name or phone', Bookings: 'by customer or ID', Invoices: 'by invoice or booking ID' }[currentPage] ?? 'anything'}...`}
+              style={{ background: 'none', border: 'none', outline: 'none', color: 'var(--text-primary)', fontSize: '0.82rem', width: '100%', fontFamily: 'inherit' }}
+            />
+          </div>
+        </div>
 
+        {/* Desktop floating topbar */}
+        <div className={`admin-topbar-float${scrolled ? ' scrolled' : ''}`}>
+          <div className="topbar-breadcrumb">
+            <div className="topbar-breadcrumb-trail">
+              <span>Pages</span>
+              <span>/</span>
+              <span style={{ color: 'var(--text-secondary)' }}>{currentPage}</span>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div className="topbar-search">
+              <Search size={13} strokeWidth={1.5} style={{ flexShrink: 0, color: 'var(--text-muted)' }} />
+              <input
+                value={searchQuery}
+                onChange={e => {
+                  const v = e.target.value;
+                  setSearchQuery(v);
+                  router.replace(v ? `${pathname}?q=${encodeURIComponent(v)}` : pathname);
+                }}
+                placeholder={`Search ${{ Vehicles: 'by name or plate', Customers: 'by name or phone', Bookings: 'by customer or ID', Invoices: 'by invoice or booking ID' }[currentPage] ?? 'anything'}...`}
+                style={{ background: 'none', border: 'none', outline: 'none', color: 'var(--text-primary)', fontSize: '0.76rem', width: 200, fontFamily: 'inherit' }}
+              />
+            </div>
+            <div className="topbar-actions">
+              <button className="topbar-action-btn" onClick={toggleTheme} title="Toggle theme">
+                {theme === 'dark' ? <Sun size={15} strokeWidth={1.5} /> : <Moon size={15} strokeWidth={1.5} />}
+              </button>
+              <button className="topbar-action-btn" title="Notifications">
+                <Bell size={15} strokeWidth={1.5} />
+              </button>
+              <div className="topbar-avatar" title={user.email ?? ''}>{initials}</div>
+            </div>
+          </div>
+        </div>
 
         {/* Content */}
         <div className="admin-content">{children}</div>

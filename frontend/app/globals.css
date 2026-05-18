@@ -159,7 +159,7 @@ a { text-decoration: none; color: inherit; }
 .form-hint { font-size: 0.78rem; color: var(--text-muted); }
 
 /* ─── Tables ──────────────────────────────────────────────────────────────── */
-.table-wrap { overflow-x: auto; border-radius: var(--radius-lg); border: 1px solid var(--border); }
+.table-wrap { overflow-x: auto; border-radius: var(--radius-lg); border: 1px solid var(--border); background: var(--bg-card); }
 table { width: 100%; border-collapse: collapse; min-width: 600px; }
 thead tr { background: var(--bg-elevated); }
 thead th { padding: 0.85rem 1rem; text-align: left; font-size: 0.78rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; }
@@ -274,18 +274,19 @@ tbody td { padding: 0.9rem 1rem; font-size: 0.88rem; color: var(--text-primary);
   .grid-4 { grid-template-columns: repeat(4, 1fr); }
   /* Row 2: total-revenue area + weekly bar side by side */
   .dashboard-row-2 { grid-template-columns: 1.6fr 1fr !important; }
-  /* Row 3: fleet + bookings (Quick Tasks removed) */
+  /* Row 3: fleet + bookings side by side */
   .dashboard-row-3 { grid-template-columns: repeat(2, 1fr) !important; }
   /* Row 4: fleet list + bookings table (table spans full on md) */
   .dashboard-row-4 { grid-template-columns: 300px 1fr !important; }
+}
+@media (min-width: 1024px) {
+  .container { padding: 0 2rem; }
 }
 @media (min-width: 1280px) {
   .grid-4 { grid-template-columns: repeat(4, 1fr); }
   .dashboard-row-2 { grid-template-columns: 1.8fr 1fr !important; }
   .dashboard-row-4 { grid-template-columns: 320px 1fr !important; }
-}
-@media (min-width: 1024px) {
-  .container { padding: 0 2rem; }
+  .admin-content { padding: 5.5rem 2rem 2rem; }
 }
 
 /* ─── WhatsApp Float ──────────────────────────────────────────────────────── */
@@ -494,7 +495,7 @@ tbody td { padding: 0.9rem 1rem; font-size: 0.88rem; color: var(--text-primary);
 /* ── Mobile topbar (Horizon floating style) ── */
 .topbar {
   display: flex; align-items: center; gap: 1rem;
-  padding: 0.75rem 1rem; margin-bottom: 1.5rem;
+  padding: 0.75rem 1rem; margin-bottom: 0;
   border-bottom: 1px solid var(--border-subtle);
 }
 .topbar-title { flex: 1; font-size: 1rem; font-weight: 700; }
@@ -519,13 +520,24 @@ tbody td { padding: 0.9rem 1rem; font-size: 0.88rem; color: var(--text-primary);
   border: 1px solid rgba(154,144,120,0.18);
   border-radius: 16px;
   padding: 0.6rem 1.25rem;
-  display: none;
+  display: none; /* shown via media query */
   align-items: center;
   justify-content: space-between;
   box-shadow: 0 4px 24px rgba(0,0,0,0.35);
-  min-height: 64px;
+  min-height: 56px;
   transition: all 0.25s linear;
 }
+
+/* ── Topbar search ── */
+.topbar-search {
+  display: flex; align-items: center; gap: 0.5rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  padding: 0.32rem 0.8rem;
+  cursor: text;
+}
+.topbar-search input::placeholder { color: var(--text-muted); }
 .admin-topbar-float.scrolled {
   background: rgba(13,13,13,0.85);
   box-shadow: 0 8px 32px rgba(0,0,0,0.5);
@@ -584,10 +596,11 @@ tbody td { padding: 0.9rem 1rem; font-size: 0.88rem; color: var(--text-primary);
   .menu-btn { display: none; }
   .admin-main { margin-left: 280px; }
   .topbar { display: none; }
-  .admin-content { padding: 1.75rem 1.75rem 2rem; }
+  .admin-topbar-float { display: flex; }
+  .admin-content { padding: 5.5rem 1.75rem 2rem; }
 }
 @media (min-width: 1280px) {
-  .admin-content { padding: 1.75rem 2rem 2rem; }
+  .admin-content { padding: 5.5rem 2rem 2rem; }
 }
 
 /* ─── Vehicle Card ────────────────────────────────────────────────────────── */
@@ -597,7 +610,7 @@ tbody td { padding: 0.9rem 1rem; font-size: 0.88rem; color: var(--text-primary);
   transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
 }
 .vehicle-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-gold); border-color: rgba(201,162,39,0.3); }
-.vehicle-card-img { width: 100%; height: 180px; object-fit: cover; background: var(--bg-elevated); }
+.vehicle-card-img { width: 100%; height: 200px; object-fit: cover; display: block; }
 .vehicle-card-body { padding: 1rem; }
 .vehicle-card-name { font-weight: 700; font-size: 1rem; margin-bottom: 0.25rem; }
 .vehicle-card-plate { font-size: 0.78rem; color: var(--gold); background: rgba(201,162,39,0.1); padding: 0.15rem 0.5rem; border-radius: 4px; display: inline-block; margin-bottom: 0.75rem; }
@@ -653,15 +666,21 @@ tbody td { padding: 0.9rem 1rem; font-size: 0.88rem; color: var(--text-primary);
   /* Better button sizing on mobile */
   .btn-sm { padding: 0.4rem 0.65rem; font-size: 0.75rem; }
 
-  /* ── Dashboard Stat Cards: 1 column on small phones ── */
-  .grid-4 { grid-template-columns: 1fr !important; }
+  /* ── Dashboard Stat Cards: 2×2 grid on mobile ── */
+  .grid-4 { grid-template-columns: repeat(2, 1fr) !important; }
+  .stat-card { padding: 0.85rem 0.9rem !important; border-radius: 14px !important; }
+  .stat-sparkline { display: none !important; }
+  .stat-card .num { font-size: 1.4rem !important; }
+  .stat-card .currency-prefix { font-size: 0.65rem !important; }
 
   /* ── Dashboard Row 3: stack vertically ── */
   .dashboard-row-3 { grid-template-columns: 1fr !important; }
 
   /* ── Fleet Activity: simplify to 2-col (vehicle + status) ── */
   .fleet-col-rate,
-  .fleet-col-plate { display: none !important; }
+  .fleet-col-plate,
+  .fleet-col-customer,
+  .fleet-col-since { display: none !important; }
 
   .fleet-grid-header,
   .fleet-grid-row {
@@ -669,10 +688,11 @@ tbody td { padding: 0.9rem 1rem; font-size: 0.88rem; color: var(--text-primary);
   }
 
   /* ── Charts: constrain height on mobile ── */
-  .recharts-responsive-container { max-height: 170px !important; }
+  .recharts-responsive-container { max-height: 160px !important; }
 
-  /* ── Stat card sparkline: smaller on mobile ── */
-  .stat-card svg { width: 60px !important; }
+  /* ── Reduce dashboard section gaps on mobile ── */
+  .dash-section { margin-bottom: 0.9rem !important; }
+  .dash-section-gap { gap: 0.9rem !important; }
 }
 
 @media (max-width: 480px) {
@@ -708,6 +728,7 @@ tbody td { padding: 0.9rem 1rem; font-size: 0.88rem; color: var(--text-primary);
 }
 
 [data-theme="light"] .sidebar {
+  background: var(--bg-card);
   box-shadow: 4px 0 24px rgba(0,0,0,0.08);
 }
 
