@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { db, storage } from '../config/firebase';
+import { supabase, STORAGE_BUCKET } from '../config/supabase';
 import { authMiddleware } from '../middleware/auth.middleware';
 import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
@@ -16,8 +16,13 @@ const docFields = upload.fields([
 // GET all customers
 router.get('/', authMiddleware, async (req, res) => {
   try {
-    const snap = await db.collection('customers').orderBy('createdAt', 'desc').get();
-    res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    const { data, error } = await supabase
+      .from('customers')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    res.json((data || []).map(mapCustomerToResponse));
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -26,9 +31,14 @@ router.get('/', authMiddleware, async (req, res) => {
 // GET single customer
 router.get('/:id', authMiddleware, async (req, res) => {
   try {
-    const doc = await db.collection('customers').doc(String(req.params.id)).get();
-    if (!doc.exists) return res.status(404).json({ error: 'Customer not found' });
-    res.json({ id: doc.id, ...doc.data() });
+    const { data, error } = await supabase
+      .from('customers')
+      .select('*')
+      .eq('id', req.params.id)
+      .single();
+
+    if (error) return res.status(404).json({ error: 'Customer not found' });
+    res.json(mapCustomerToResponse(data));
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -38,33 +48,31 @@ router.get('/:id', authMiddleware, async (req, res) => {
 router.post('/', authMiddleware, docFields, async (req, res) => {
   try {
     const { name, phone, email, address, nicNumber } = req.body;
-    const bucket = storage.bucket();
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
 
-    async function uploadDoc(fieldName: string) {
-      if (files?.[fieldName]?.[0]) {
-        const f = files[fieldName][0];
-        const fileName = `customers/docs/${uuidv4()}-${f.originalname}`;
-        const fileRef = bucket.file(fileName);
-        await fileRef.save(f.buffer, { contentType: f.mimetype, public: true });
-        return `https://storage.googleapis.com/${bucket.name}/${fileName}`;
-      }
-      return '';
-    }
-
     const [nicFrontUrl, nicBackUrl, drivingLicenseUrl] = await Promise.all([
-      uploadDoc('nicFront'),
-      uploadDoc('nicBack'),
-      uploadDoc('drivingLicense'),
+      uploadDoc(files, 'nicFront'),
+      uploadDoc(files, 'nicBack'),
+      uploadDoc(files, 'drivingLicense'),
     ]);
 
-    const docRef = await db.collection('customers').add({
-      name, phone, email, address, nicNumber,
-      nicFrontUrl, nicBackUrl, drivingLicenseUrl,
-      createdAt: new Date(),
-    });
+    const { data, error } = await supabase
+      .from('customers')
+      .insert({
+        name,
+        phone,
+        email,
+        address,
+        nic_number: nicNumber,
+        nic_front_url: nicFrontUrl,
+        nic_back_url: nicBackUrl,
+        driving_license_url: drivingLicenseUrl,
+      })
+      .select()
+      .single();
 
-    res.json({ id: docRef.id });
+    if (error) throw error;
+    res.json({ id: data.id });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -74,29 +82,24 @@ router.post('/', authMiddleware, docFields, async (req, res) => {
 router.put('/:id', authMiddleware, docFields, async (req, res) => {
   try {
     const { name, phone, email, address, nicNumber } = req.body;
-    const bucket = storage.bucket();
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-    const updateData: any = { name, phone, email, address, nicNumber };
-
-    async function uploadDoc(fieldName: string) {
-      if (files?.[fieldName]?.[0]) {
-        const f = files[fieldName][0];
-        const fileName = `customers/docs/${uuidv4()}-${f.originalname}`;
-        const fileRef = bucket.file(fileName);
-        await fileRef.save(f.buffer, { contentType: f.mimetype, public: true });
-        return `https://storage.googleapis.com/${bucket.name}/${fileName}`;
-      }
-      return null;
-    }
+    const updateData: any = { name, phone, email, address, nic_number: nicNumber };
 
     const [nicFrontUrl, nicBackUrl, drivingLicenseUrl] = await Promise.all([
-      uploadDoc('nicFront'), uploadDoc('nicBack'), uploadDoc('drivingLicense'),
+      uploadDoc(files, 'nicFront'),
+      uploadDoc(files, 'nicBack'),
+      uploadDoc(files, 'drivingLicense'),
     ]);
-    if (nicFrontUrl) updateData.nicFrontUrl = nicFrontUrl;
-    if (nicBackUrl) updateData.nicBackUrl = nicBackUrl;
-    if (drivingLicenseUrl) updateData.drivingLicenseUrl = drivingLicenseUrl;
+    if (nicFrontUrl) updateData.nic_front_url = nicFrontUrl;
+    if (nicBackUrl) updateData.nic_back_url = nicBackUrl;
+    if (drivingLicenseUrl) updateData.driving_license_url = drivingLicenseUrl;
 
-    await db.collection('customers').doc(String(req.params.id)).update(updateData);
+    const { error } = await supabase
+      .from('customers')
+      .update(updateData)
+      .eq('id', req.params.id);
+
+    if (error) throw error;
     res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -106,7 +109,12 @@ router.put('/:id', authMiddleware, docFields, async (req, res) => {
 // DELETE customer
 router.delete('/:id', authMiddleware, async (req, res) => {
   try {
-    await db.collection('customers').doc(String(req.params.id)).delete();
+    const { error } = await supabase
+      .from('customers')
+      .delete()
+      .eq('id', req.params.id);
+
+    if (error) throw error;
     res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -116,14 +124,80 @@ router.delete('/:id', authMiddleware, async (req, res) => {
 // GET bookings for a customer
 router.get('/:id/bookings', authMiddleware, async (req, res) => {
   try {
-    const snap = await db.collection('bookings')
-      .where('customerId', '==', String(req.params.id))
-      .orderBy('createdAt', 'desc')
-      .get();
-    res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    const { data, error } = await supabase
+      .from('bookings')
+      .select('*')
+      .eq('customer_id', req.params.id)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    res.json((data || []).map(mapBookingToResponse));
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 });
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+async function uploadDoc(files: { [fieldname: string]: Express.Multer.File[] }, fieldName: string): Promise<string> {
+  if (files?.[fieldName]?.[0]) {
+    const f = files[fieldName][0];
+    const fileName = `customers/docs/${uuidv4()}-${f.originalname}`;
+    const { error } = await supabase.storage
+      .from(STORAGE_BUCKET)
+      .upload(fileName, f.buffer, {
+        contentType: f.mimetype,
+        upsert: false,
+      });
+    if (error) throw error;
+
+    const { data } = supabase.storage
+      .from(STORAGE_BUCKET)
+      .getPublicUrl(fileName);
+
+    return data.publicUrl;
+  }
+  return '';
+}
+
+function mapCustomerToResponse(c: any) {
+  return {
+    id: c.id,
+    name: c.name,
+    phone: c.phone,
+    email: c.email,
+    address: c.address,
+    nicNumber: c.nic_number,
+    nicFrontUrl: c.nic_front_url,
+    nicBackUrl: c.nic_back_url,
+    drivingLicenseUrl: c.driving_license_url,
+    createdAt: c.created_at,
+  };
+}
+
+function mapBookingToResponse(b: any) {
+  return {
+    id: b.id,
+    customerId: b.customer_id,
+    vehicleId: b.vehicle_id,
+    startDate: b.start_date,
+    endDate: b.end_date,
+    startMeterReading: b.start_meter_reading,
+    endMeterReading: b.end_meter_reading,
+    totalKm: b.total_km,
+    pricePerKm: b.price_per_km,
+    pricePerDay: b.price_per_day,
+    baseAmount: b.base_amount,
+    discountAmount: b.discount_amount,
+    finalAmount: b.final_amount,
+    isOutsourced: b.is_outsourced,
+    outsourcedPayment: b.outsourced_payment,
+    commissionRate: b.commission_rate,
+    status: b.status,
+    invoiceUrl: b.invoice_url,
+    notes: b.notes,
+    createdAt: b.created_at,
+  };
+}
 
 export default router;

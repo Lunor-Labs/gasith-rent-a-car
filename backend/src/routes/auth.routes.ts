@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { db, auth } from '../config/firebase';
+import { supabase } from '../config/supabase';
 
 const router = Router();
 
@@ -9,8 +9,9 @@ router.get('/me', async (req, res) => {
   if (!authHeader?.startsWith('Bearer ')) return res.status(401).json({ error: 'No token' });
   try {
     const token = authHeader.split('Bearer ')[1];
-    const decoded = await auth.verifyIdToken(token);
-    res.json({ uid: decoded.uid, email: decoded.email });
+    const { data, error } = await supabase.auth.getUser(token);
+    if (error || !data.user) return res.status(401).json({ error: 'Invalid token' });
+    res.json({ uid: data.user.id, email: data.user.email });
   } catch {
     res.status(401).json({ error: 'Invalid token' });
   }

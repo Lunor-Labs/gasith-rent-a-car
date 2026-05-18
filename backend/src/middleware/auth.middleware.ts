@@ -1,15 +1,18 @@
 import { Request, Response, NextFunction } from 'express';
-import { auth } from '../config/firebase';
+import { supabase } from '../config/supabase';
 
 export async function authMiddleware(req: Request, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Unauthorized: No token provided' });
   }
-  const idToken = authHeader.split('Bearer ')[1];
+  const token = authHeader.split('Bearer ')[1];
   try {
-    const decoded = await auth.verifyIdToken(idToken);
-    (req as any).user = decoded;
+    const { data, error } = await supabase.auth.getUser(token);
+    if (error || !data.user) {
+      return res.status(401).json({ error: 'Unauthorized: Invalid token' });
+    }
+    (req as any).user = data.user;
     next();
   } catch (err) {
     return res.status(401).json({ error: 'Unauthorized: Invalid token' });

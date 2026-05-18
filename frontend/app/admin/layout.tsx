@@ -1,16 +1,27 @@
 'use client';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useAuth } from '@/context/AuthContext';
+import { useTheme } from '@/context/ThemeContext';
+import { getDashboardStats } from '@/lib/api';
 import toast from 'react-hot-toast';
+import {
+  LayoutGrid, Car, Users, CalendarDays, Receipt,
+  Settings, LogOut, Menu, Sun, Moon, Bell, Search,
+} from 'lucide-react';
 
-const NAV = [
-  { label: 'Dashboard', href: '/admin', icon: '📊', exact: true },
-  { label: 'Vehicles',  href: '/admin/vehicles',  icon: '🚗', exact: false },
-  { label: 'Customers', href: '/admin/customers', icon: '👥', exact: false },
-  { label: 'Bookings',  href: '/admin/bookings',  icon: '📋', exact: false },
-  { label: 'Invoices',  href: '/admin/invoices',  icon: '🧾', exact: false },
+const MAIN_NAV = [
+  { label: 'Dashboard', href: '/admin',           Icon: LayoutGrid,   exact: true,  badgeKey: null      },
+  { label: 'Vehicles',  href: '/admin/vehicles',  Icon: Car,          exact: false, badgeKey: 'totalVehicles'  },
+  { label: 'Customers', href: '/admin/customers', Icon: Users,        exact: false, badgeKey: 'totalCustomers' },
+  { label: 'Bookings',  href: '/admin/bookings',  Icon: CalendarDays, exact: false, badgeKey: 'activeBookings' },
+  { label: 'Invoices',  href: '/admin/invoices',  Icon: Receipt,      exact: false, badgeKey: null      },
+];
+
+const WORKSPACE_NAV = [
+  { label: 'Settings', href: '/admin/settings', Icon: Settings,  exact: false },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -18,25 +29,38 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [navCounts, setNavCounts] = useState<Record<string, number>>({});
   const [scrolled, setScrolled] = useState(false);
-  const mainRef = useRef<HTMLElement>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const { theme, toggleTheme } = useTheme();
 
-  // Active route detection
-  const isActive = (item: typeof NAV[0]) =>
+  useEffect(() => { setSearchQuery(''); }, [pathname]);
+
+  useEffect(() => {
+    const handler = () => setScrolled(window.scrollY > 10);
+    window.addEventListener('scroll', handler, { passive: true });
+    return () => window.removeEventListener('scroll', handler);
+  }, []);
+
+  const isActive = (item: { href: string; exact: boolean }) =>
     item.exact ? pathname === item.href : pathname.startsWith(item.href);
 
-  const currentPage = NAV.find(n => isActive(n))?.label || 'Dashboard';
+  const currentPage = [...MAIN_NAV, ...WORKSPACE_NAV].find(n => isActive(n))?.label ?? 'Dashboard';
 
   useEffect(() => {
     if (!loading && !user) router.replace('/login');
   }, [user, loading]);
 
-  // Scroll-aware floating topbar
+  // Fetch real counts for sidebar badges
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 1);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+    if (user) {
+      getDashboardStats()
+        .then(r => setNavCounts(r.data || {}))
+        .catch(() => {});
+    }
+  }, [user]);
+
+
 
   const handleLogout = async () => {
     await logout();
@@ -52,111 +76,142 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (!user) return null;
 
-  // Avatar initials from email
   const initials = user.email?.slice(0, 2).toUpperCase() ?? 'AD';
+  const rawName = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'Admin';
+  const displayName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
 
   return (
     <div className="admin-layout">
-      {/* Sidebar overlay (mobile) */}
-      <div
-        className={`sidebar-overlay ${sidebarOpen ? 'show' : ''}`}
-        onClick={() => setSidebarOpen(false)}
-      />
+      <div className={`sidebar-overlay ${sidebarOpen ? 'show' : ''}`} onClick={() => setSidebarOpen(false)} />
 
       {/* ── Sidebar ── */}
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         {/* Brand */}
         <div className="sidebar-logo">
-          <span>GASITH</span> RENT A CAR
-          <div className="sidebar-logo-sub">Admin Panel</div>
+          <Image src="/logo.webp" alt="Gasith" width={40} height={40} style={{ borderRadius: 8, marginRight: '0.5rem', verticalAlign: 'middle', display: 'inline-block' }} />
+          <span>Gasith</span> Rent a Car
+          <div className="sidebar-logo-sub">Admin Portal</div>
         </div>
         <div className="sidebar-separator" />
 
         {/* Nav */}
         <nav className="sidebar-nav">
-          <div className="sidebar-section-label">Main Menu</div>
-          {NAV.map(item => (
+          <div className="sidebar-section-label">Main</div>
+          {MAIN_NAV.map(({ label, href, Icon, exact, badgeKey }) => {
+            const badge = badgeKey ? navCounts[badgeKey] : undefined;
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={`nav-item ${isActive({ href, exact }) ? 'active' : ''}`}
+                onClick={() => setSidebarOpen(false)}
+              >
+                <span className="nav-item-icon"><Icon size={15} strokeWidth={1.5} /></span>
+                {label}
+                {badge != null && <span className="nav-badge">{badge}</span>}
+              </Link>
+            );
+          })}
+
+          <div className="sidebar-section-label" style={{ marginTop: '1.25rem' }}>Workspace</div>
+          {WORKSPACE_NAV.map(({ label, href, Icon, exact }) => (
             <Link
-              key={item.href}
-              href={item.href}
-              className={`nav-item ${isActive(item) ? 'active' : ''}`}
+              key={href}
+              href={href}
+              className={`nav-item ${isActive({ href, exact }) ? 'active' : ''}`}
               onClick={() => setSidebarOpen(false)}
             >
-              <span className="nav-item-icon">{item.icon}</span>
-              {item.label}
+              <span className="nav-item-icon"><Icon size={15} strokeWidth={1.5} /></span>
+              {label}
             </Link>
           ))}
         </nav>
 
-        {/* Upgrade card (Horizon-style) */}
-        <div className="sidebar-footer">
-          <div className="sidebar-upgrade-card">
-            <div className="sidebar-upgrade-icon">🚀</div>
-            <div className="sidebar-upgrade-title">Need Help?</div>
-            <div className="sidebar-upgrade-desc">
-              Access documentation and support for your rental management system.
-            </div>
-            <a href="/" target="_blank" className="btn btn-primary btn-sm btn-full">
-              View Site
-            </a>
-          </div>
-        </div>
-
         {/* User row */}
         <div className="sidebar-user-row">
           <div className="sidebar-user-avatar">{initials}</div>
-          <div className="sidebar-user-email">{user.email}</div>
-          <button
-            onClick={handleLogout}
-            className="topbar-action-btn"
-            title="Logout"
-            style={{ flexShrink: 0 }}
-          >
-            🚪
+          <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+            <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {displayName}
+            </div>
+            <div style={{ fontSize: '0.66rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {user.email}
+            </div>
+          </div>
+          <button onClick={handleLogout} className="topbar-action-btn" title="Logout" style={{ flexShrink: 0 }}>
+            <LogOut size={14} strokeWidth={1.5} />
           </button>
         </div>
       </aside>
 
       {/* ── Main ── */}
-      <main className="admin-main" ref={mainRef}>
-        {/* Mobile Topbar */}
+      <main className="admin-main">
+        {/* Mobile topbar */}
         <div className="topbar">
-          <button className="menu-btn" onClick={() => setSidebarOpen(true)}>☰</button>
+          <button className="menu-btn" onClick={() => setSidebarOpen(true)}>
+            <Menu size={18} strokeWidth={1.5} />
+          </button>
           <div className="topbar-title">{currentPage}</div>
-          <a href="/" target="_blank" style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-            View Site
-          </a>
+          <button className="topbar-action-btn" onClick={toggleTheme} title="Toggle theme">
+            {theme === 'dark' ? <Sun size={16} strokeWidth={1.5} /> : <Moon size={16} strokeWidth={1.5} />}
+          </button>
+          <a href="/" target="_blank" style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>View Site</a>
         </div>
 
-        {/* Floating glass topbar (desktop – Horizon UI style) */}
-        <div className={`admin-topbar-float ${scrolled ? 'scrolled' : ''}`}>
+        {/* Mobile search bar */}
+        <div className="responsive-show-mobile" style={{ padding: '0.6rem 1rem 0.75rem', gap: 0 }}>
+          <div className="topbar-search" style={{ width: '100%' }}>
+            <Search size={13} strokeWidth={1.5} style={{ flexShrink: 0, color: 'var(--text-muted)' }} />
+            <input
+              value={searchQuery}
+              onChange={e => {
+                const v = e.target.value;
+                setSearchQuery(v);
+                router.replace(v ? `${pathname}?q=${encodeURIComponent(v)}` : pathname);
+              }}
+              placeholder={`Search ${{ Vehicles: 'by name or plate', Customers: 'by name or phone', Bookings: 'by customer or ID', Invoices: 'by invoice or booking ID' }[currentPage] ?? 'anything'}...`}
+              style={{ background: 'none', border: 'none', outline: 'none', color: 'var(--text-primary)', fontSize: '0.82rem', width: '100%', fontFamily: 'inherit' }}
+            />
+          </div>
+        </div>
+
+        {/* Desktop floating topbar */}
+        <div className={`admin-topbar-float${scrolled ? ' scrolled' : ''}`}>
           <div className="topbar-breadcrumb">
             <div className="topbar-breadcrumb-trail">
-              <a href="/admin">Pages</a>
+              <span>Pages</span>
               <span>/</span>
               <span style={{ color: 'var(--text-secondary)' }}>{currentPage}</span>
             </div>
-            <div className="topbar-page-title">{currentPage}</div>
           </div>
-
-          <div className="topbar-actions">
-            {/* Search button */}
-            <button className="topbar-action-btn" title="Search">🔍</button>
-            {/* Notifications */}
-            <button className="topbar-action-btn" title="Notifications">🔔</button>
-            {/* View site */}
-            <a href="/" target="_blank" className="topbar-action-btn" title="View Site">🌐</a>
-            {/* Avatar with logout dropdown */}
-            <div className="topbar-avatar" onClick={handleLogout} title="Logout">
-              {initials}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div className="topbar-search">
+              <Search size={13} strokeWidth={1.5} style={{ flexShrink: 0, color: 'var(--text-muted)' }} />
+              <input
+                value={searchQuery}
+                onChange={e => {
+                  const v = e.target.value;
+                  setSearchQuery(v);
+                  router.replace(v ? `${pathname}?q=${encodeURIComponent(v)}` : pathname);
+                }}
+                placeholder={`Search ${{ Vehicles: 'by name or plate', Customers: 'by name or phone', Bookings: 'by customer or ID', Invoices: 'by invoice or booking ID' }[currentPage] ?? 'anything'}...`}
+                style={{ background: 'none', border: 'none', outline: 'none', color: 'var(--text-primary)', fontSize: '0.76rem', width: 200, fontFamily: 'inherit' }}
+              />
+            </div>
+            <div className="topbar-actions">
+              <button className="topbar-action-btn" onClick={toggleTheme} title="Toggle theme">
+                {theme === 'dark' ? <Sun size={15} strokeWidth={1.5} /> : <Moon size={15} strokeWidth={1.5} />}
+              </button>
+              <button className="topbar-action-btn" title="Notifications">
+                <Bell size={15} strokeWidth={1.5} />
+              </button>
+              <div className="topbar-avatar" title={user.email ?? ''}>{initials}</div>
             </div>
           </div>
         </div>
 
-        {/* Page content */}
-        <div className="admin-content">
-          {children}
-        </div>
+        {/* Content */}
+        <div className="admin-content">{children}</div>
       </main>
     </div>
   );

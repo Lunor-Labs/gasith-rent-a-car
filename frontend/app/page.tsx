@@ -54,7 +54,7 @@ export default function LandingPage() {
 
           {/* Logo */}
           <div style={{ display:'flex', alignItems:'center', gap:'0.75rem' }}>
-            <span className="material-symbols-outlined" style={{ color: C.gold, fontSize:'1.5rem' }}>directions_car</span>
+            <img src="/logo.webp" alt="Gasith" style={{ width: 36, height: 36, borderRadius: 8 }} />
             <span style={{ fontFamily:'Inter,sans-serif', fontWeight:900, fontSize:'1.25rem',
               letterSpacing:'-0.02em', textTransform:'uppercase', color: C.gold }}>
               GASITH RENT A CAR
@@ -489,13 +489,16 @@ export default function LandingPage() {
       <footer style={{ background:'#09090b', borderTop:`1px solid ${C.outlineV}` }}>
         <div style={{ maxWidth:'1280px', margin:'0 auto', padding:'3rem 1.5rem',
           display:'flex', flexWrap:'wrap', justifyContent:'space-between', alignItems:'center', gap:'1.5rem' }}>
-          <div>
-            <div style={{ fontFamily:'Inter,sans-serif', fontWeight:900, fontSize:'1.125rem',
-              color:'#fff', marginBottom:'0.5rem' }}>GASITH RENT A CAR</div>
-            <p style={{ fontFamily:'Inter,sans-serif', fontSize:'0.75rem', textTransform:'uppercase',
-              letterSpacing:'0.1em', color:'#71717a', margin:0 }}>
-              © {new Date().getFullYear()} Gasith Rent a Car. All rights reserved.
-            </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <img src="/logo.webp" alt="Gasith" style={{ width: 40, height: 40, borderRadius: 8 }} />
+            <div>
+              <div style={{ fontFamily:'Inter,sans-serif', fontWeight:900, fontSize:'1.125rem',
+                color:'#fff', marginBottom:'0.25rem' }}>GASITH RENT A CAR</div>
+              <p style={{ fontFamily:'Inter,sans-serif', fontSize:'0.75rem', textTransform:'uppercase',
+                letterSpacing:'0.1em', color:'#71717a', margin:0 }}>
+                © {new Date().getFullYear()} Gasith Rent a Car. All rights reserved.
+              </p>
+            </div>
           </div>
           <nav style={{ display:'flex', gap:'2rem', flexWrap:'wrap' }}>
             {[['Browse Fleet','#fleet'],['How It Works','#how'],['WhatsApp Support', waHref],['Admin Login','/login']].map(([label, href]) => (

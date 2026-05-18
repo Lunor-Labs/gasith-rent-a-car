@@ -1,5 +1,7 @@
 import jsPDF from 'jspdf';
 import { format } from 'date-fns';
+import path from 'path';
+import fs from 'fs';
 
 interface InvoiceData {
   booking: any;
@@ -7,168 +9,234 @@ interface InvoiceData {
   vehicle: any;
 }
 
+// ── Cache the logo as JPEG base64 ─────────────────────────────────────────────
+let logoJpgBase64: string | null = null;
+
+function getLogoBase64(): string | null {
+  if (logoJpgBase64) return logoJpgBase64;
+  try {
+    const possiblePaths = [
+      path.join(__dirname, '../../assets/logo.jpg'),
+      path.join(__dirname, '../../../assets/logo.jpg'),
+      path.join(process.cwd(), 'assets/logo.jpg'),
+    ];
+
+    let logoPath = '';
+    for (const p of possiblePaths) {
+      if (fs.existsSync(p)) { logoPath = p; break; }
+    }
+    if (!logoPath) {
+      console.warn('Logo file not found in any expected path');
+      return null;
+    }
+
+    logoJpgBase64 = fs.readFileSync(logoPath).toString('base64');
+    return logoJpgBase64;
+  } catch (e) {
+    console.warn('Could not load logo for invoice:', e);
+    return null;
+  }
+}
+
+// ── Generate Invoice PDF ──────────────────────────────────────────────────────
 export async function generateInvoicePDF({ booking, customer, vehicle }: InvoiceData): Promise<Buffer> {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const pageW = 210;
+  const margin = 20;
+  const contentW = pageW - margin * 2;
 
-  const primary = [30, 30, 30];
-  const accent = [201, 162, 39]; // Gold
-  const light = [245, 245, 245];
+  // Colors
+  const gold: [number, number, number] = [201, 162, 39];
+  const dark: [number, number, number] = [20, 20, 20];
+  const muted: [number, number, number] = [130, 130, 130];
+  const cardBg: [number, number, number] = [248, 248, 248];
+  const green: [number, number, number] = [34, 197, 94];
 
-  // Header background
-  doc.setFillColor(15, 15, 15);
-  doc.rect(0, 0, 210, 45, 'F');
+  let y = 15;
 
-  // Company name
-  doc.setTextColor(201, 162, 39);
-  doc.setFontSize(22);
-  doc.setFont('helvetica', 'bold');
-  doc.text('GASITH RENT A CAR', 15, 18);
+  // ── Logo (top center) ───────────────────────────────────────────────────────
+  const logoBase64 = getLogoBase64();
+  if (logoBase64) {
+    const logoSize = 24;
+    const logoX = (pageW - logoSize) / 2;
+    doc.addImage(`data:image/jpeg;base64,${logoBase64}`, 'JPEG', logoX, y, logoSize, logoSize);
+    y += logoSize + 8; // generous gap between logo and title
+  }
 
-  doc.setTextColor(200, 200, 200);
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
-  doc.text('Premium Vehicle Rental Services', 15, 25);
-  doc.text('Sri Lanka | WhatsApp: +94 XX XXX XXXX', 15, 31);
-
-  // Invoice label
-  doc.setTextColor(255, 255, 255);
+  // ── Company name (no tagline) ───────────────────────────────────────────────
+  doc.setTextColor(...gold);
   doc.setFontSize(18);
   doc.setFont('helvetica', 'bold');
-  doc.text('INVOICE', 160, 18, { align: 'right' });
+  doc.text('GASITH RENT A CAR', pageW / 2, y, { align: 'center' });
+  y += 10;
 
-  const invoiceNo = `INV-${booking.id.substring(0, 8).toUpperCase()}`;
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(180, 180, 180);
-  doc.text(`No: ${invoiceNo}`, 160, 26, { align: 'right' });
-  doc.text(`Date: ${format(new Date(), 'dd MMM yyyy')}`, 160, 32, { align: 'right' });
-
-  // Customer Info
-  doc.setTextColor(30, 30, 30);
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'bold');
-  doc.text('BILL TO', 15, 58);
-
-  doc.setDrawColor(201, 162, 39);
+  // Thin gold separator
+  doc.setDrawColor(...gold);
   doc.setLineWidth(0.5);
-  doc.line(15, 60, 80, 60);
+  doc.line(pageW / 2 - 30, y, pageW / 2 + 30, y);
+  y += 14;
 
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.text(customer.name || 'N/A', 15, 67);
-  doc.text(customer.phone || '', 15, 73);
-  doc.text(customer.email || '', 15, 79);
-  doc.text(`NIC: ${customer.nicNumber || 'N/A'}`, 15, 85);
+  // ── Invoice Card ────────────────────────────────────────────────────────────
+  const cardX = margin;
+  const cardStartY = y;
+  const cardPadding = 14;
+  const rowH = 12;
 
-  // Vehicle Info
-  doc.setFont('helvetica', 'bold');
-  doc.text('VEHICLE DETAILS', 115, 58);
-  doc.line(115, 60, 195, 60);
+  // Helper to draw a detail row inside the card
+  function drawRow(label: string, value: string, isHighlight = false, isGreen = false) {
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...muted);
+    doc.text(label, cardX + cardPadding, y);
 
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Vehicle: ${vehicle.name || 'N/A'}`, 115, 67);
-  doc.text(`Plate: ${vehicle.plate || 'N/A'}`, 115, 73);
-  doc.text(`Type: ${vehicle.type || 'N/A'}`, 115, 79);
-
-  // Booking Info
-  doc.setFont('helvetica', 'bold');
-  doc.text('RENTAL PERIOD', 15, 100);
-  doc.line(15, 102, 100, 102);
-
-  doc.setFont('helvetica', 'normal');
-  const startDate = booking.startDate?._seconds
-    ? format(new Date(booking.startDate._seconds * 1000), 'dd MMM yyyy')
-    : 'N/A';
-  const endDate = booking.endDate?._seconds
-    ? format(new Date(booking.endDate._seconds * 1000), 'dd MMM yyyy')
-    : 'N/A';
-  doc.text(`From: ${startDate}`, 15, 109);
-  doc.text(`To: ${endDate}`, 15, 115);
-
-  if (!booking.isOutsourced) {
-    doc.text(`Start Reading: ${booking.startMeterReading?.toLocaleString()} km`, 15, 121);
-    doc.text(`End Reading: ${booking.endMeterReading?.toLocaleString()} km`, 15, 127);
-    doc.text(`Total Distance: ${booking.totalKm?.toLocaleString()} km`, 15, 133);
+    doc.setFont('helvetica', 'bold');
+    if (isHighlight) {
+      doc.setTextColor(...gold);
+      doc.setFontSize(14);
+    } else if (isGreen) {
+      doc.setTextColor(...green);
+      doc.setFontSize(11);
+    } else {
+      doc.setTextColor(...dark);
+      doc.setFontSize(11);
+    }
+    doc.text(value, cardX + contentW - cardPadding, y, { align: 'right' });
+    y += rowH;
   }
 
-  // Table Header
-  const tableTop = 148;
-  doc.setFillColor(15, 15, 15);
-  doc.rect(15, tableTop, 180, 9, 'F');
-  doc.setTextColor(201, 162, 39);
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'bold');
-  doc.text('DESCRIPTION', 18, tableTop + 6);
-  doc.text('DETAILS', 100, tableTop + 6);
-  doc.text('AMOUNT (LKR)', 180, tableTop + 6, { align: 'right' });
+  // Calculate rows content
+  const invoiceNo = `INV-${booking.id.substring(0, 8).toUpperCase()}`;
 
-  // Table rows
-  doc.setTextColor(30, 30, 30);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9.5);
+  // Parse dates
+  const parseDate = (d: any): Date | null => {
+    if (!d) return null;
+    if (typeof d === 'string') return new Date(d);
+    if (d._seconds) return new Date(d._seconds * 1000);
+    return null;
+  };
 
-  let rowY = tableTop + 15;
-  const rowH = 10;
+  const startDate = parseDate(booking.startDate || booking.start_date);
+  const endDate = parseDate(booking.endDate || booking.end_date);
+  const startStr = startDate ? format(startDate, 'dd MMM yyyy') : 'N/A';
+  const endStr = endDate ? format(endDate, 'dd MMM yyyy') : 'N/A';
 
-  const rows = booking.isOutsourced
-    ? [
-        ['Outsourced Vehicle Rental', vehicle.plate, `${booking.outsourcedPayment?.toLocaleString() || 0}`],
-        ['Commission', `${booking.commissionRate || 10}%`, `-${((booking.outsourcedPayment || 0) * (booking.commissionRate || 10) / 100).toLocaleString()}`],
-      ]
-    : [
-        ['Mileage Charge', `${booking.totalKm?.toLocaleString() || 0} km × LKR ${booking.pricePerKm?.toLocaleString() || 0}`, `${booking.baseAmount?.toLocaleString() || 0}`],
-      ];
+  // Billing mode determines which rows to show
+  const billingMode = booking.billingMode || booking.billing_mode || 'per_km';
+  let thirdRowLabel = '';
+  let thirdRowValue = '';
+  let chargesDetail = '';
 
-  rows.forEach((row, i) => {
-    if (i % 2 === 0) {
-      doc.setFillColor(248, 248, 248);
-      doc.rect(15, rowY - 6, 180, rowH, 'F');
+  if (billingMode === 'per_day') {
+    // Per-day: show Rental Period + days × rate
+    thirdRowLabel = 'Rental Period';
+    thirdRowValue = `${startStr}  —  ${endStr}`;
+    if (startDate && endDate) {
+      const diffMs = endDate.getTime() - startDate.getTime();
+      const days = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+      const rate = booking.pricePerDay || booking.price_per_day || 0;
+      chargesDetail = `${days} day${days > 1 ? 's' : ''} x LKR ${rate.toLocaleString()}`;
+    } else {
+      chargesDetail = `LKR ${(booking.baseAmount || booking.base_amount || 0).toLocaleString()}`;
     }
-    doc.setTextColor(40, 40, 40);
-    doc.text(row[0], 18, rowY);
-    doc.text(row[1], 100, rowY);
-    doc.text(row[2], 180, rowY, { align: 'right' });
-    rowY += rowH;
-  });
+  } else {
+    // Per-km: show Distance Traveled + km × rate
+    const totalKm = booking.totalKm || booking.total_km || 0;
+    const rate = booking.pricePerKm || booking.price_per_km || 0;
+    thirdRowLabel = 'Distance Traveled';
+    thirdRowValue = `${totalKm.toLocaleString()} km`;
+    if (totalKm > 0 && rate > 0) {
+      chargesDetail = `${totalKm.toLocaleString()} km x LKR ${rate.toLocaleString()}`;
+    } else {
+      chargesDetail = `LKR ${(booking.baseAmount || booking.base_amount || 0).toLocaleString()}`;
+    }
+  }
 
-  // Subtotal section
-  rowY += 5;
+  const discountAmount = booking.discountAmount || booking.discount_amount || 0;
+  const finalAmount = booking.finalAmount || booking.final_amount || 0;
+
+  // Calculate card height: customer + vehicle + third row + charges + separator + (discount?) + total
+  let rowCount = 5; // customer, vehicle, thirdRow, charges, total
+  if (discountAmount > 0) rowCount += 1;
+  const cardH = cardPadding * 2 + rowCount * rowH + 10; // extra 10 for separator
+
+  // Draw card background
+  doc.setFillColor(...cardBg);
+  doc.roundedRect(cardX, cardStartY, contentW, cardH, 4, 4, 'F');
+
+  // Draw subtle border
   doc.setDrawColor(220, 220, 220);
   doc.setLineWidth(0.3);
-  doc.line(110, rowY, 195, rowY);
-  rowY += 7;
+  doc.roundedRect(cardX, cardStartY, contentW, cardH, 4, 4, 'S');
 
-  doc.setFontSize(9.5);
-  doc.text('Subtotal', 120, rowY);
-  doc.text(`LKR ${(booking.baseAmount || 0).toLocaleString()}`, 180, rowY, { align: 'right' });
-  rowY += 9;
+  y = cardStartY + cardPadding + 5;
 
-  if (booking.discountAmount > 0) {
-    doc.setTextColor(34, 197, 94);
-    doc.text('Discount', 120, rowY);
-    doc.text(`- LKR ${booking.discountAmount.toLocaleString()}`, 180, rowY, { align: 'right' });
-    rowY += 9;
+  // Invoice card rows
+  drawRow('Customer', customer.name || 'N/A');
+  drawRow('Vehicle', `${vehicle.name || 'N/A'} (${vehicle.plate || ''})`.trim());
+  drawRow(thirdRowLabel, thirdRowValue);
+  drawRow('Charges', chargesDetail);
+
+  // Separator before totals
+  y += 2;
+  doc.setDrawColor(210, 210, 210);
+  doc.setLineWidth(0.3);
+  doc.line(cardX + cardPadding, y, cardX + contentW - cardPadding, y);
+  y += 8;
+
+  if (discountAmount > 0) {
+    drawRow('Discount', `- LKR ${discountAmount.toLocaleString()}`, false, true);
   }
 
-  // Total
-  doc.setFillColor(15, 15, 15);
-  doc.rect(110, rowY - 5, 85, 13, 'F');
-  doc.setTextColor(201, 162, 39);
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'bold');
-  doc.text('TOTAL', 120, rowY + 4);
-  doc.text(`LKR ${(booking.finalAmount || 0).toLocaleString()}`, 180, rowY + 4, { align: 'right' });
+  // Total — highlighted
+  drawRow('Total', `LKR ${finalAmount.toLocaleString()}`, true);
 
-  // Footer
-  doc.setFillColor(15, 15, 15);
-  doc.rect(0, 272, 210, 25, 'F');
-  doc.setTextColor(150, 150, 150);
-  doc.setFontSize(8);
+  y = cardStartY + cardH + 16;
+
+  // ── Greeting tagline ────────────────────────────────────────────────────────
+  doc.setTextColor(...dark);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'italic');
+  doc.text('We appreciate your trust in Gasith Rent a Car.', pageW / 2, y, { align: 'center' });
+  y += 5.5;
+  doc.text('Wish you a safe and pleasant journey ahead!', pageW / 2, y, { align: 'center' });
+  y += 16;
+
+  // ── Invoice metadata (minor) ────────────────────────────────────────────────
+  doc.setTextColor(...muted);
+  doc.setFontSize(7.5);
   doc.setFont('helvetica', 'normal');
-  doc.text('Thank you for choosing Gasith Rent a Car!', 105, 281, { align: 'center' });
-  doc.text('For queries: WhatsApp us at +94 XX XXX XXXX', 105, 287, { align: 'center' });
-  doc.setTextColor(201, 162, 39);
-  doc.text(`Invoice No: ${invoiceNo}`, 105, 293, { align: 'center' });
+  const nowStr = format(new Date(), 'dd MMM yyyy, hh:mm a');
+  doc.text(`Invoice ${invoiceNo}  ·  Generated on ${nowStr}`, pageW / 2, y, { align: 'center' });
+  y += 14;
+
+  // ── Made with ♥ by Lunor Labs (drawn heart) ─────────────────────────────────
+  const heartY = y;
+  const heartX = pageW / 2;
+
+  doc.setTextColor(180, 180, 180);
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Made with', heartX - 16, heartY, { align: 'center' });
+
+  // Draw a small filled heart shape using lines
+  const hx = heartX + 0.5;
+  const hy = heartY - 1.2;
+  const hs = 1.4; // heart scale
+  doc.setFillColor(220, 50, 50);
+  // Left bump
+  doc.circle(hx - hs * 0.5, hy - hs * 0.15, hs * 0.55, 'F');
+  // Right bump
+  doc.circle(hx + hs * 0.5, hy - hs * 0.15, hs * 0.55, 'F');
+  // Bottom triangle
+  doc.triangle(
+    hx - hs * 1.05, hy,
+    hx + hs * 1.05, hy,
+    hx, hy + hs * 1.2,
+    'F'
+  );
+
+  doc.setTextColor(180, 180, 180);
+  doc.text('by Lunor Labs', heartX + 17, heartY, { align: 'center' });
 
   return Buffer.from(doc.output('arraybuffer'));
 }
