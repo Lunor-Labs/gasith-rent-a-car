@@ -4,11 +4,12 @@ import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useAuth } from '@/context/AuthContext';
+import { useTheme } from '@/context/ThemeContext';
 import { getDashboardStats } from '@/lib/api';
 import toast from 'react-hot-toast';
 import {
   LayoutGrid, Car, Users, CalendarDays, Receipt,
-  Settings, LogOut, Menu,
+  Settings, LogOut, Menu, Sun, Moon,
 } from 'lucide-react';
 
 const MAIN_NAV = [
@@ -29,6 +30,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [navCounts, setNavCounts] = useState<Record<string, number>>({});
+  const { theme, toggleTheme } = useTheme();
 
   const isActive = (item: { href: string; exact: boolean }) =>
     item.exact ? pathname === item.href : pathname.startsWith(item.href);
@@ -117,6 +119,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="sidebar-user-row">
           <div className="sidebar-user-avatar">{initials}</div>
           <div className="sidebar-user-email">{user.email}</div>
+          <button onClick={toggleTheme} className="topbar-action-btn" title="Toggle theme" style={{ flexShrink: 0 }}>
+            {theme === 'dark' ? <Sun size={14} strokeWidth={1.5} /> : <Moon size={14} strokeWidth={1.5} />}
+          </button>
           <button onClick={handleLogout} className="topbar-action-btn" title="Logout" style={{ flexShrink: 0 }}>
             <LogOut size={14} strokeWidth={1.5} />
           </button>
@@ -131,6 +136,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <Menu size={18} strokeWidth={1.5} />
           </button>
           <div className="topbar-title">{currentPage}</div>
+          <button className="topbar-action-btn" onClick={toggleTheme} title="Toggle theme">
+            {theme === 'dark' ? <Sun size={16} strokeWidth={1.5} /> : <Moon size={16} strokeWidth={1.5} />}
+          </button>
           <a href="/" target="_blank" style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>View Site</a>
         </div>
 
