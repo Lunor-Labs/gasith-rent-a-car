@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { getBookings, getCustomers, getVehicles, createBooking, deleteBooking } from '@/lib/api';
+import { getBookings, getCustomers, getVehicles, createBooking, deleteBooking, getPricingConfig } from '@/lib/api';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { Plus, Trash2, CalendarDays, Route, CalendarCheck, CalendarPlus, Users, Car, Gauge, Banknote, NotebookPen } from 'lucide-react';
@@ -17,37 +17,78 @@ export default function BookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [pricingConfig, setPricingConfig] = useState<{ firstDayFreeKm: number; subsequentDayFreeKm: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [filter, setFilter] = useState('all');
-  const [form, setForm] = useState({ customerId: '', vehicleId: '', startDate: '', notes: '', billingMode: 'per_km' as 'per_km' | 'per_day' });
+  const [form, setForm] = useState({
+    customerId: '',
+    vehicleId: '',
+    startDate: '',
+    endDate: '',
+    pricePerDay: '',
+    pricePerKm: '',
+    firstDayFreeKm: '',
+    subsequentDayFreeKm: '',
+    notes: '',
+  });
 
   const load = () => {
     setLoading(true);
-    Promise.all([getBookings(), getCustomers(), getVehicles()])
-      .then(([b, c, v]) => { setBookings(b.data); setCustomers(c.data); setVehicles(v.data); })
+    Promise.all([getBookings(), getCustomers(), getVehicles(), getPricingConfig()])
+      .then(([b, c, v, p]) => {
+        setBookings(b.data);
+        setCustomers(c.data);
+        setVehicles(v.data);
+        setPricingConfig(p.data);
+      })
       .finally(() => setLoading(false));
   };
   useEffect(() => { load(); }, []);
 
   const selectedVehicle = vehicles.find(v => v.id === form.vehicleId);
 
+  const calcFreeKm = (start: string, end: string) => {
+    if (!start || !end) return null;
+    const days = Math.max(1, Math.ceil(
+      (new Date(end).getTime() - new Date(start).getTime()) / (1000 * 60 * 60 * 24)
+    ));
+    const d1 = form.firstDayFreeKm ? Number(form.firstDayFreeKm) : (pricingConfig?.firstDayFreeKm ?? 150);
+    const sub = form.subsequentDayFreeKm ? Number(form.subsequentDayFreeKm) : (pricingConfig?.subsequentDayFreeKm ?? 100);
+    return d1 + (days - 1) * sub;
+  };
+
+  const previewFreeKm = calcFreeKm(form.startDate, form.endDate);
+
+  const previewDays = (form.startDate && form.endDate)
+    ? Math.max(1, Math.ceil(
+        (new Date(form.endDate).getTime() - new Date(form.startDate).getTime()) / (1000 * 60 * 60 * 24)
+      ))
+    : null;
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault(); setSubmitting(true);
     try {
       await createBooking({
-        ...form,
+        customerId: form.customerId,
+        vehicleId: form.vehicleId,
+        startDate: form.startDate,
+        endDate: form.endDate || undefined,
+        notes: form.notes,
         startMeterReading: selectedVehicle?.lastMeterReading || 0,
-        pricePerKm: selectedVehicle?.pricePerKm || 0,
-        pricePerDay: selectedVehicle?.pricePerDay || 0,
+        pricePerKm: form.pricePerKm ? Number(form.pricePerKm) : selectedVehicle?.pricePerKm || 0,
+        pricePerDay: form.pricePerDay ? Number(form.pricePerDay) : selectedVehicle?.pricePerDay || 0,
+        firstDayFreeKm: form.firstDayFreeKm ? Number(form.firstDayFreeKm) : undefined,
+        subsequentDayFreeKm: form.subsequentDayFreeKm ? Number(form.subsequentDayFreeKm) : undefined,
+        freeKm: previewFreeKm ?? undefined,
         isOutsourced: selectedVehicle?.isOutsourced || false,
         commissionRate: selectedVehicle?.isOutsourced ? (selectedVehicle?.commissionRate || 10) : 0,
-        billingMode: form.billingMode,
+        billingMode: 'per_day',
       });
       toast.success('Booking created');
       setModalOpen(false);
-      setForm({ customerId: '', vehicleId: '', startDate: '', notes: '', billingMode: 'per_km' });
+      setForm({ customerId: '', vehicleId: '', startDate: '', endDate: '', pricePerDay: '', pricePerKm: '', firstDayFreeKm: '', subsequentDayFreeKm: '', notes: '' });
       load();
     } catch (err: any) { toast.error(err?.response?.data?.error || 'Failed to create booking'); }
     finally { setSubmitting(false); }
@@ -122,7 +163,7 @@ export default function BookingsPage() {
               <thead>
                 <tr>
                   <th>ID</th><th>Customer</th><th>Vehicle</th><th>Status</th>
-                  <th>Start</th><th>Mode</th><th>Amount</th><th>Type</th><th>Actions</th>
+                  <th>Start</th><th>Amount</th><th>Type</th><th>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -133,7 +174,6 @@ export default function BookingsPage() {
                     <td style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{vehName(b.vehicleId)}</td>
                     <td><span className={`badge ${STATUS_COLORS[b.status] || 'badge-muted'}`}>{b.status}</span></td>
                     <td style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{fmtDate(b.startDate)}</td>
-                    <td><span className={`badge ${b.billingMode === 'per_day' ? 'badge-gold' : 'badge-muted'}`}>{b.billingMode === 'per_day' ? 'Per Day' : 'Per KM'}</span></td>
                     <td style={{ fontWeight: 600 }}>{b.finalAmount > 0 ? `LKR ${b.finalAmount.toLocaleString()}` : '—'}</td>
                     <td><span className={`badge ${b.isOutsourced ? 'badge-warning' : 'badge-muted'}`}>{b.isOutsourced ? 'Outsourced' : 'Direct'}</span></td>
                     <td>
@@ -166,7 +206,6 @@ export default function BookingsPage() {
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '0.6rem', fontSize: '0.8rem' }}>
                   <code style={{ color: 'var(--gold)', fontSize: '0.72rem' }}>{b.id.slice(0, 8).toUpperCase()}</code>
                   <span style={{ color: 'var(--text-muted)' }}>{fmtDate(b.startDate)}</span>
-                  <span className={`badge ${b.billingMode === 'per_day' ? 'badge-gold' : 'badge-muted'}`} style={{ fontSize: '0.65rem' }}>{b.billingMode === 'per_day' ? 'Per Day' : 'Per KM'}</span>
                   {b.isOutsourced && <span className="badge badge-warning" style={{ fontSize: '0.65rem' }}>Outsourced</span>}
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -280,41 +319,111 @@ export default function BookingsPage() {
                   Billing
                 </div>
 
-                {/* Billing mode */}
-                <div className="form-group" style={{ marginBottom: '0.85rem' }}>
-                  <label className="form-label">Billing Mode *</label>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem', marginTop: '0.25rem' }}>
-                    {([
-                      { value: 'per_km' as const, Icon: Route,        label: 'Per Kilometre', desc: 'Charge based on distance driven' },
-                      { value: 'per_day' as const, Icon: CalendarDays, label: 'Per Day',       desc: 'Charge based on rental duration' },
-                    ]).map(({ value, Icon, label, desc }) => (
-                      <button
-                        key={value} type="button"
-                        onClick={() => setForm({ ...form, billingMode: value, startDate: value === 'per_km' ? '' : form.startDate })}
-                        style={{
-                          padding: '0.75rem 1rem', borderRadius: 10, cursor: 'pointer', textAlign: 'left',
-                          border: '1.5px solid ' + (form.billingMode === value ? 'var(--gold)' : 'var(--border-subtle)'),
-                          background: form.billingMode === value ? 'rgba(212,168,83,0.08)' : 'var(--bg-elevated)',
-                          transition: 'all 0.15s',
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.3rem' }}>
-                          <Icon size={14} strokeWidth={2} style={{ color: form.billingMode === value ? 'var(--gold)' : 'var(--text-muted)' }} />
-                          <span style={{ fontSize: '0.84rem', fontWeight: 700, color: form.billingMode === value ? 'var(--gold)' : 'var(--text-primary)' }}>{label}</span>
-                        </div>
-                        <div style={{ fontSize: '0.69rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>{desc}</div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Start date (per_day only) */}
-                {form.billingMode === 'per_day' && (
-                  <div className="form-group" style={{ marginBottom: '0.85rem' }}>
+                {/* Start + End date row */}
+                <div className="grid-2" style={{ marginBottom: '0.85rem' }}>
+                  <div className="form-group">
                     <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                       <CalendarDays size={11} strokeWidth={2} style={{ color: 'var(--text-muted)' }} /> Start Date *
                     </label>
-                    <input type="date" className="form-input" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} required />
+                    <input type="date" className="form-input"
+                      value={form.startDate}
+                      onChange={e => setForm({ ...form, startDate: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <CalendarDays size={11} strokeWidth={2} style={{ color: 'var(--text-muted)' }} /> End Date
+                      <span style={{ fontWeight: 400, color: 'var(--text-muted)', fontSize: '0.7rem' }}> (optional)</span>
+                    </label>
+                    <input type="date" className="form-input"
+                      value={form.endDate}
+                      min={form.startDate}
+                      onChange={e => setForm({ ...form, endDate: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                {/* Rate overrides */}
+                <div className="grid-2" style={{ marginBottom: '0.85rem' }}>
+                  <div className="form-group">
+                    <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <Banknote size={11} strokeWidth={2} style={{ color: 'var(--text-muted)' }} /> Daily Rate (LKR)
+                    </label>
+                    <input type="number" className="form-input" min={0}
+                      placeholder={`Default: ${selectedVehicle?.pricePerDay || 0}`}
+                      value={form.pricePerDay}
+                      onChange={e => setForm({ ...form, pricePerDay: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <Route size={11} strokeWidth={2} style={{ color: 'var(--text-muted)' }} /> Rate per KM (LKR)
+                    </label>
+                    <input type="number" className="form-input" min={0}
+                      placeholder={`Default: ${selectedVehicle?.pricePerKm || 0}`}
+                      value={form.pricePerKm}
+                      onChange={e => setForm({ ...form, pricePerKm: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                {/* Free KM rate overrides */}
+                <div className="grid-2" style={{ marginBottom: '0.85rem' }}>
+                  <div className="form-group">
+                    <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <CalendarDays size={11} strokeWidth={2} style={{ color: 'var(--text-muted)' }} /> Day 1 Free KM
+                    </label>
+                    <input type="number" className="form-input" min={0}
+                      placeholder={`Default: ${pricingConfig?.firstDayFreeKm ?? 150}`}
+                      value={form.firstDayFreeKm}
+                      onChange={e => setForm({ ...form, firstDayFreeKm: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <CalendarDays size={11} strokeWidth={2} style={{ color: 'var(--text-muted)' }} /> Subsequent Days Free KM
+                    </label>
+                    <input type="number" className="form-input" min={0}
+                      placeholder={`Default: ${pricingConfig?.subsequentDayFreeKm ?? 100}`}
+                      value={form.subsequentDayFreeKm}
+                      onChange={e => setForm({ ...form, subsequentDayFreeKm: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                {/* Preview pill */}
+                {(previewDays != null || form.pricePerDay || form.firstDayFreeKm || form.subsequentDayFreeKm || form.pricePerKm) && (
+                  <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 10, padding: '0.65rem 0.85rem', marginBottom: '0.85rem', display: 'flex', gap: '1.25rem', flexWrap: 'wrap', fontSize: '0.78rem' }}>
+                    {previewDays != null && (
+                      <div>
+                        <span style={{ color: 'var(--text-muted)' }}>Duration: </span>
+                        <span style={{ fontWeight: 700 }}>{previewDays} day{previewDays > 1 ? 's' : ''}</span>
+                      </div>
+                    )}
+                    {previewFreeKm != null && (
+                      <div>
+                        <span style={{ color: 'var(--text-muted)' }}>Free KM: </span>
+                        <span style={{ fontWeight: 700, color: (form.firstDayFreeKm || form.subsequentDayFreeKm) ? 'var(--gold)' : 'inherit' }}>
+                          {previewFreeKm} km
+                        </span>
+                      </div>
+                    )}
+                    {form.pricePerKm && selectedVehicle && (
+                      <div style={{ color: Number(form.pricePerKm) < selectedVehicle.pricePerKm ? '#22c55e' : 'var(--text-muted)' }}>
+                        <span>KM rate: </span>
+                        <span style={{ fontWeight: 700 }}>LKR {Number(form.pricePerKm)}/km</span>
+                      </div>
+                    )}
+                    {form.pricePerDay && selectedVehicle && Number(form.pricePerDay) < selectedVehicle.pricePerDay && (
+                      <div style={{ color: '#22c55e' }}>
+                        <span>Rate saving: </span>
+                        <span style={{ fontWeight: 700 }}>
+                          LKR {((selectedVehicle.pricePerDay - Number(form.pricePerDay)) * (previewDays || 1)).toLocaleString()}
+                          {previewDays ? '' : '/day'}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
 

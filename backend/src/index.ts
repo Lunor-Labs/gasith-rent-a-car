@@ -6,6 +6,7 @@ import vehicleRoutes from './routes/vehicles.routes';
 import customerRoutes from './routes/customers.routes';
 import bookingRoutes from './routes/bookings.routes';
 import invoiceRoutes from './routes/invoices.routes';
+import pricingConfigRoutes from './routes/pricing-config.routes';
 
 const app = express();
 
@@ -32,6 +33,7 @@ app.use('/api/vehicles', vehicleRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/invoices', invoiceRoutes);
+app.use('/api/pricing-config', pricingConfigRoutes);
 
 app.get('/api/health', (_, res) => res.json({ status: 'ok', timestamp: new Date() }));
 
