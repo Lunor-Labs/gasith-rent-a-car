@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { getBooking, getCustomer, getVehicle, completeBooking, generateInvoice, getWhatsAppLink } from '@/lib/api';
+import { getBooking, getCustomer, getVehicle, completeBooking, generateInvoice, getWhatsAppLink, getPricingConfig } from '@/lib/api';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 
@@ -10,6 +10,7 @@ export default function BookingDetailPage() {
   const [booking, setBooking] = useState<any>(null);
   const [customer, setCustomer] = useState<any>(null);
   const [vehicle, setVehicle] = useState<any>(null);
+  const [pricingConfig, setPricingConfig] = useState<{ firstDayFreeKm: number; subsequentDayFreeKm: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [completing, setCompleting] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -21,14 +22,20 @@ export default function BookingDetailPage() {
     endDate: new Date().toISOString().split('T')[0],
     outsourcedPayment: '',
     commissionRate: '10',
+    freeKm: '',
   });
 
   const load = async () => {
     setLoading(true);
     try {
-      const b = await getBooking(id);
+      const [b, p] = await Promise.all([getBooking(id), getPricingConfig()]);
       setBooking(b.data);
-      setEndForm(f => ({ ...f, commissionRate: String(b.data.commissionRate || 10) }));
+      setPricingConfig(p.data);
+      setEndForm(f => ({
+        ...f,
+        commissionRate: String(b.data.commissionRate || 10),
+        freeKm: b.data.freeKm != null ? String(b.data.freeKm) : '',
+      }));
       const [c, v] = await Promise.all([
         getCustomer(b.data.customerId),
         getVehicle(b.data.vehicleId),
@@ -62,13 +69,47 @@ export default function BookingDetailPage() {
   const previewPerDay = () => {
     if (!booking || booking.isOutsourced || booking.billingMode !== 'per_day') return null;
     if (!endForm.endDate || !booking.startDate) return null;
-    const start = new Date(typeof booking.startDate === 'string' ? booking.startDate : new Date(booking.startDate._seconds * 1000));
+    if (!endForm.endMeterReading) return null;
+
+    const start = new Date(typeof booking.startDate === 'string'
+      ? booking.startDate
+      : new Date(booking.startDate._seconds * 1000));
     const end = new Date(endForm.endDate);
-    const diffMs = end.getTime() - start.getTime();
-    const days = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
-    const base = days * (booking.pricePerDay || 0);
-    const disc = Number(endForm.discountAmount) || 0;
-    return { days, base, disc, final: base - disc };
+    const days = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+
+    const totalKm = Number(endForm.endMeterReading) - (booking.startMeterReading || 0);
+    if (totalKm < 0) return null;
+
+    const autoDefaultFreeKm = pricingConfig
+      ? pricingConfig.firstDayFreeKm + (days - 1) * pricingConfig.subsequentDayFreeKm
+      : (booking.freeKm ?? 150);
+
+    const freeKm = endForm.freeKm
+      ? Number(endForm.freeKm)
+      : (booking.freeKm ?? autoDefaultFreeKm);
+
+    const pricePerKm = booking.pricePerKm || 0;
+    const pricePerDay = booking.pricePerDay || 0;
+    const defaultPricePerDay = booking.defaultPricePerDay || pricePerDay;
+
+    const extraKm = Math.max(0, totalKm - freeKm);
+    const extraKmCharge = extraKm * pricePerKm;
+
+    const defaultExtraKm = Math.max(0, totalKm - autoDefaultFreeKm);
+    const defaultExtraKmCharge = defaultExtraKm * pricePerKm;
+
+    const rateDiscount = Math.max(0, (defaultPricePerDay - pricePerDay) * days);
+    const kmDiscount = Math.max(0, defaultExtraKmCharge - extraKmCharge);
+    const totalDiscount = rateDiscount + kmDiscount;
+
+    const base = days * defaultPricePerDay + defaultExtraKmCharge;
+    const final = base - totalDiscount;
+
+    return {
+      days, totalKm, freeKm, autoDefaultFreeKm, extraKm, extraKmCharge,
+      pricePerDay, defaultPricePerDay, rateDiscount, kmDiscount, totalDiscount,
+      base, final,
+    };
   };
 
   const outsourcedPreview = () => {
@@ -88,11 +129,12 @@ export default function BookingDetailPage() {
     e.preventDefault(); setCompleting(true);
     try {
       await completeBooking(id, {
-        ...endForm,
+        endDate: endForm.endDate,
         endMeterReading: Number(endForm.endMeterReading),
         discountAmount: Number(endForm.discountAmount),
         outsourcedPayment: Number(endForm.outsourcedPayment),
         commissionRate: Number(endForm.commissionRate),
+        freeKm: endForm.freeKm ? Number(endForm.freeKm) : undefined,
       });
       toast.success('Booking completed!'); load();
     } catch (err: any) { toast.error(err?.response?.data?.error || 'Failed'); }
@@ -173,6 +215,14 @@ export default function BookingDetailPage() {
               }
             </div>
           </div>
+
+          {/* Free KM (per_day only) */}
+          {isPerDay && booking.freeKm != null && (
+            <div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Free KM</div>
+              <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--gold)' }}>{booking.freeKm} km</div>
+            </div>
+          )}
         </div>
 
         {booking.isOutsourced && (
@@ -209,12 +259,30 @@ export default function BookingDetailPage() {
               ) : isPerDay ? (
                 <>
                   <div className="form-group">
-                    <label className="form-label">End Meter Reading (km) — optional</label>
-                    <input type="number" className="form-input" placeholder={`> ${booking.startMeterReading}`} value={endForm.endMeterReading} onChange={e => setEndForm({ ...endForm, endMeterReading: e.target.value })} />
+                    <label className="form-label">End Meter Reading (km) *</label>
+                    <input
+                      type="number" className="form-input"
+                      placeholder={`> ${booking.startMeterReading}`}
+                      value={endForm.endMeterReading}
+                      onChange={e => setEndForm({ ...endForm, endMeterReading: e.target.value })}
+                      required
+                    />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Discount (LKR)</label>
-                    <input type="number" className="form-input" placeholder="0" value={endForm.discountAmount} onChange={e => setEndForm({ ...endForm, discountAmount: e.target.value })} />
+                    <label className="form-label">
+                      Free KM
+                      {calcDay?.autoDefaultFreeKm != null && (
+                        <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: '0.4rem', fontSize: '0.72rem' }}>
+                          (default: {calcDay.autoDefaultFreeKm} km)
+                        </span>
+                      )}
+                    </label>
+                    <input
+                      type="number" className="form-input" min={0}
+                      placeholder={calcDay?.autoDefaultFreeKm != null ? String(calcDay.autoDefaultFreeKm) : 'Auto'}
+                      value={endForm.freeKm}
+                      onChange={e => setEndForm({ ...endForm, freeKm: e.target.value })}
+                    />
                   </div>
                 </>
               ) : (
@@ -246,10 +314,57 @@ export default function BookingDetailPage() {
                   )}
                   {calcDay && (
                     <>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--text-muted)' }}>Duration</span><span>{calcDay.days} day{calcDay.days > 1 ? 's' : ''}</span></div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--text-muted)' }}>{calcDay.days} day{calcDay.days > 1 ? 's' : ''} × LKR {booking.pricePerDay}</span><span>LKR {calcDay.base.toLocaleString()}</span></div>
-                      {calcDay.disc > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', color: '#22c55e' }}><span>Discount</span><span>- LKR {calcDay.disc.toLocaleString()}</span></div>}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: '0.45rem', marginTop: '0.2rem', fontWeight: 700, fontSize: '1rem', color: 'var(--gold)' }}><span>Total</span><span>LKR {calcDay.final.toLocaleString()}</span></div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: 'var(--text-muted)' }}>Duration</span>
+                        <span>{calcDay.days} day{calcDay.days > 1 ? 's' : ''}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: 'var(--text-muted)' }}>Daily Rate</span>
+                        <span>
+                          LKR {calcDay.pricePerDay.toLocaleString()}
+                          {calcDay.defaultPricePerDay !== calcDay.pricePerDay && (
+                            <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem', marginLeft: 6 }}>
+                              (default: LKR {calcDay.defaultPricePerDay.toLocaleString()})
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: 'var(--text-muted)' }}>KM Driven</span>
+                        <span>{calcDay.totalKm.toLocaleString()} km</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: 'var(--text-muted)' }}>Free KM</span>
+                        <span style={{ color: calcDay.freeKm > calcDay.autoDefaultFreeKm ? 'var(--gold)' : 'inherit' }}>
+                          {calcDay.freeKm.toLocaleString()} km
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: 'var(--text-muted)' }}>Extra KM</span>
+                        <span>{calcDay.extraKm.toLocaleString()} km</span>
+                      </div>
+                      {calcDay.extraKmCharge > 0 && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: 'var(--text-muted)' }}>Extra KM Charge</span>
+                          <span>LKR {calcDay.extraKmCharge.toLocaleString()}</span>
+                        </div>
+                      )}
+                      {calcDay.rateDiscount > 0 && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#22c55e' }}>
+                          <span>Rate Discount</span>
+                          <span>− LKR {calcDay.rateDiscount.toLocaleString()}</span>
+                        </div>
+                      )}
+                      {calcDay.kmDiscount > 0 && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#22c55e' }}>
+                          <span>Free KM Bonus</span>
+                          <span>− LKR {calcDay.kmDiscount.toLocaleString()}</span>
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: '0.45rem', marginTop: '0.2rem', fontWeight: 700, fontSize: '1rem', color: 'var(--gold)' }}>
+                        <span>Total</span>
+                        <span>LKR {calcDay.final.toLocaleString()}</span>
+                      </div>
                     </>
                   )}
                   {outsourcedCalc && (
@@ -278,6 +393,22 @@ export default function BookingDetailPage() {
           {/* Amount summary */}
           <div style={{ background: '#0f0f0f', border: '1px solid rgba(201,162,39,0.2)', borderRadius: 12, padding: '1rem', marginBottom: '1rem' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', fontSize: '0.88rem' }}>
+              {isPerDay && (
+                <>
+                  {booking.extraKm > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>Extra KM Charge ({booking.extraKm} km)</span>
+                      <span>LKR {(booking.extraKmCharge || 0).toLocaleString()}</span>
+                    </div>
+                  )}
+                  {booking.freeKm != null && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>Free KM Used</span>
+                      <span>{booking.freeKm} km</span>
+                    </div>
+                  )}
+                </>
+              )}
               <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--text-muted)' }}>Base Amount</span><span>LKR {(booking.baseAmount || 0).toLocaleString()}</span></div>
               {booking.discountAmount > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', color: '#22c55e' }}><span>Discount</span><span>- LKR {booking.discountAmount.toLocaleString()}</span></div>
