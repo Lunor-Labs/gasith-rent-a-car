@@ -68,9 +68,10 @@ export default function BookingDetailPage() {
     const totalKm = Number(endForm.endMeterReading) - (booking.startMeterReading || 0);
     if (totalKm < 0) return null;
 
-    const autoDefaultFreeKm = pricingConfig
-      ? pricingConfig.firstDayFreeKm + (days - 1) * pricingConfig.subsequentDayFreeKm
-      : (booking.freeKm ?? 150);
+    // Use per-booking rate overrides if set, else fall back to global config
+    const d1 = booking.bookingFirstDayFreeKm ?? pricingConfig?.firstDayFreeKm ?? 150;
+    const sub = booking.bookingSubsequentDayFreeKm ?? pricingConfig?.subsequentDayFreeKm ?? 100;
+    const autoDefaultFreeKm = d1 + (days - 1) * sub;
 
     const freeKm = endForm.freeKm
       ? Number(endForm.freeKm)

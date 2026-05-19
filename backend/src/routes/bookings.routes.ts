@@ -95,7 +95,8 @@ router.post('/', authMiddleware, async (req, res) => {
     const {
       customerId, vehicleId, startDate, endDate,
       startMeterReading, pricePerKm, pricePerDay,
-      freeKm, isOutsourced, outsourcedPayment,
+      freeKm, firstDayFreeKm, subsequentDayFreeKm,
+      isOutsourced, outsourcedPayment,
       commissionRate, notes,
     } = req.body;
 
@@ -108,7 +109,7 @@ router.post('/', authMiddleware, async (req, res) => {
     const defaultPricePerDay = vehicleData?.price_per_day || 0;
     const effectivePricePerDay = Number(pricePerDay) || defaultPricePerDay;
 
-    // Resolve free_km from override or auto-calculate from dates
+    // Resolve free_km — use per-booking rate overrides if provided, else global config
     let resolvedFreeKm: number | null = null;
     if (freeKm != null && freeKm !== '') {
       resolvedFreeKm = Number(freeKm);
@@ -119,10 +120,12 @@ router.post('/', authMiddleware, async (req, res) => {
         .eq('id', 1)
         .single();
       if (config) {
+        const d1 = firstDayFreeKm != null && firstDayFreeKm !== '' ? Number(firstDayFreeKm) : config.first_day_free_km;
+        const sub = subsequentDayFreeKm != null && subsequentDayFreeKm !== '' ? Number(subsequentDayFreeKm) : config.subsequent_day_free_km;
         const start = new Date(startDate);
         const end = new Date(endDate);
         const days = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
-        resolvedFreeKm = config.first_day_free_km + (days - 1) * config.subsequent_day_free_km;
+        resolvedFreeKm = d1 + (days - 1) * sub;
       }
     }
 
@@ -141,6 +144,8 @@ router.post('/', authMiddleware, async (req, res) => {
         default_price_per_day: defaultPricePerDay,
         billing_mode: 'per_day',
         free_km: resolvedFreeKm,
+        booking_first_day_free_km: firstDayFreeKm != null && firstDayFreeKm !== '' ? Number(firstDayFreeKm) : null,
+        booking_subsequent_day_free_km: subsequentDayFreeKm != null && subsequentDayFreeKm !== '' ? Number(subsequentDayFreeKm) : null,
         extra_km: 0,
         extra_km_charge: 0,
         base_amount: 0,
@@ -228,10 +233,17 @@ router.put('/:id/complete', authMiddleware, async (req, res) => {
         ? config.first_day_free_km + (days - 1) * config.subsequent_day_free_km
         : (booking.free_km ?? 150);
 
-      // Priority: completion-time param → stored booking value → default
+      // Per-booking rate overrides → used to recompute effective free KM for this booking
+      const bookingD1 = booking.booking_first_day_free_km;
+      const bookingSubseq = booking.booking_subsequent_day_free_km;
+      const autoFreeKm = (bookingD1 != null || bookingSubseq != null)
+        ? (bookingD1 ?? (config?.first_day_free_km ?? 150)) + (days - 1) * (bookingSubseq ?? (config?.subsequent_day_free_km ?? 100))
+        : computedDefaultFreeKm;
+
+      // Priority: completion-time param → auto-computed from booking rates → stored booking value → global default
       resolvedFreeKm = freeKm != null && freeKm !== ''
         ? Number(freeKm)
-        : (booking.free_km ?? computedDefaultFreeKm);
+        : (booking.free_km ?? autoFreeKm);
 
       const defaultPricePerDay = booking.default_price_per_day || booking.price_per_day || 0;
       const pricePerDay = booking.price_per_day || 0;
@@ -426,6 +438,8 @@ function mapBookingToResponse(b: any) {
     billingMode: b.billing_mode || 'per_km',
     defaultFreeKm: b.default_free_km,
     freeKm: b.free_km,
+    bookingFirstDayFreeKm: b.booking_first_day_free_km,
+    bookingSubsequentDayFreeKm: b.booking_subsequent_day_free_km,
     extraKm: b.extra_km,
     extraKmCharge: b.extra_km_charge,
     baseAmount: b.base_amount,

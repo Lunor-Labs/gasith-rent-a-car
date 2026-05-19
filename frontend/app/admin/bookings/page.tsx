@@ -28,7 +28,9 @@ export default function BookingsPage() {
     startDate: '',
     endDate: '',
     pricePerDay: '',
-    freeKm: '',
+    pricePerKm: '',
+    firstDayFreeKm: '',
+    subsequentDayFreeKm: '',
     notes: '',
   });
 
@@ -47,17 +49,17 @@ export default function BookingsPage() {
 
   const selectedVehicle = vehicles.find(v => v.id === form.vehicleId);
 
-  const calcDefaultFreeKm = (start: string, end: string) => {
-    if (!start || !end || !pricingConfig) return null;
+  const calcFreeKm = (start: string, end: string) => {
+    if (!start || !end) return null;
     const days = Math.max(1, Math.ceil(
       (new Date(end).getTime() - new Date(start).getTime()) / (1000 * 60 * 60 * 24)
     ));
-    return pricingConfig.firstDayFreeKm + (days - 1) * pricingConfig.subsequentDayFreeKm;
+    const d1 = form.firstDayFreeKm ? Number(form.firstDayFreeKm) : (pricingConfig?.firstDayFreeKm ?? 150);
+    const sub = form.subsequentDayFreeKm ? Number(form.subsequentDayFreeKm) : (pricingConfig?.subsequentDayFreeKm ?? 100);
+    return d1 + (days - 1) * sub;
   };
 
-  const previewFreeKm = form.freeKm
-    ? Number(form.freeKm)
-    : calcDefaultFreeKm(form.startDate, form.endDate);
+  const previewFreeKm = calcFreeKm(form.startDate, form.endDate);
 
   const previewDays = (form.startDate && form.endDate)
     ? Math.max(1, Math.ceil(
@@ -69,18 +71,24 @@ export default function BookingsPage() {
     e.preventDefault(); setSubmitting(true);
     try {
       await createBooking({
-        ...form,
+        customerId: form.customerId,
+        vehicleId: form.vehicleId,
+        startDate: form.startDate,
+        endDate: form.endDate || undefined,
+        notes: form.notes,
         startMeterReading: selectedVehicle?.lastMeterReading || 0,
-        pricePerKm: selectedVehicle?.pricePerKm || 0,
+        pricePerKm: form.pricePerKm ? Number(form.pricePerKm) : selectedVehicle?.pricePerKm || 0,
         pricePerDay: form.pricePerDay ? Number(form.pricePerDay) : selectedVehicle?.pricePerDay || 0,
-        freeKm: form.freeKm ? Number(form.freeKm) : undefined,
+        firstDayFreeKm: form.firstDayFreeKm ? Number(form.firstDayFreeKm) : undefined,
+        subsequentDayFreeKm: form.subsequentDayFreeKm ? Number(form.subsequentDayFreeKm) : undefined,
+        freeKm: previewFreeKm ?? undefined,
         isOutsourced: selectedVehicle?.isOutsourced || false,
         commissionRate: selectedVehicle?.isOutsourced ? (selectedVehicle?.commissionRate || 10) : 0,
         billingMode: 'per_day',
       });
       toast.success('Booking created');
       setModalOpen(false);
-      setForm({ customerId: '', vehicleId: '', startDate: '', endDate: '', pricePerDay: '', freeKm: '', notes: '' });
+      setForm({ customerId: '', vehicleId: '', startDate: '', endDate: '', pricePerDay: '', pricePerKm: '', firstDayFreeKm: '', subsequentDayFreeKm: '', notes: '' });
       load();
     } catch (err: any) { toast.error(err?.response?.data?.error || 'Failed to create booking'); }
     finally { setSubmitting(false); }
@@ -336,7 +344,7 @@ export default function BookingsPage() {
                   </div>
                 </div>
 
-                {/* Rate + Free KM overrides */}
+                {/* Rate overrides */}
                 <div className="grid-2" style={{ marginBottom: '0.85rem' }}>
                   <div className="form-group">
                     <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
@@ -350,18 +358,42 @@ export default function BookingsPage() {
                   </div>
                   <div className="form-group">
                     <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                      <Route size={11} strokeWidth={2} style={{ color: 'var(--text-muted)' }} /> Free KM Override
+                      <Route size={11} strokeWidth={2} style={{ color: 'var(--text-muted)' }} /> Rate per KM (LKR)
                     </label>
                     <input type="number" className="form-input" min={0}
-                      placeholder={previewFreeKm != null ? `Auto: ${previewFreeKm} km` : 'Set end date first'}
-                      value={form.freeKm}
-                      onChange={e => setForm({ ...form, freeKm: e.target.value })}
+                      placeholder={`Default: ${selectedVehicle?.pricePerKm || 0}`}
+                      value={form.pricePerKm}
+                      onChange={e => setForm({ ...form, pricePerKm: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                {/* Free KM rate overrides */}
+                <div className="grid-2" style={{ marginBottom: '0.85rem' }}>
+                  <div className="form-group">
+                    <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <CalendarDays size={11} strokeWidth={2} style={{ color: 'var(--text-muted)' }} /> Day 1 Free KM
+                    </label>
+                    <input type="number" className="form-input" min={0}
+                      placeholder={`Default: ${pricingConfig?.firstDayFreeKm ?? 150}`}
+                      value={form.firstDayFreeKm}
+                      onChange={e => setForm({ ...form, firstDayFreeKm: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <CalendarDays size={11} strokeWidth={2} style={{ color: 'var(--text-muted)' }} /> Subsequent Days Free KM
+                    </label>
+                    <input type="number" className="form-input" min={0}
+                      placeholder={`Default: ${pricingConfig?.subsequentDayFreeKm ?? 100}`}
+                      value={form.subsequentDayFreeKm}
+                      onChange={e => setForm({ ...form, subsequentDayFreeKm: e.target.value })}
                     />
                   </div>
                 </div>
 
                 {/* Preview pill */}
-                {(previewDays != null || form.pricePerDay || form.freeKm) && (
+                {(previewDays != null || form.pricePerDay || form.firstDayFreeKm || form.subsequentDayFreeKm || form.pricePerKm) && (
                   <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 10, padding: '0.65rem 0.85rem', marginBottom: '0.85rem', display: 'flex', gap: '1.25rem', flexWrap: 'wrap', fontSize: '0.78rem' }}>
                     {previewDays != null && (
                       <div>
@@ -372,12 +404,15 @@ export default function BookingsPage() {
                     {previewFreeKm != null && (
                       <div>
                         <span style={{ color: 'var(--text-muted)' }}>Free KM: </span>
-                        <span style={{ fontWeight: 700, color: form.freeKm ? 'var(--gold)' : 'inherit' }}>
-                          {form.freeKm ? Number(form.freeKm) : previewFreeKm} km
-                          {form.freeKm && previewFreeKm && Number(form.freeKm) !== previewFreeKm &&
-                            <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}> (default: {previewFreeKm})</span>
-                          }
+                        <span style={{ fontWeight: 700, color: (form.firstDayFreeKm || form.subsequentDayFreeKm) ? 'var(--gold)' : 'inherit' }}>
+                          {previewFreeKm} km
                         </span>
+                      </div>
+                    )}
+                    {form.pricePerKm && selectedVehicle && (
+                      <div style={{ color: Number(form.pricePerKm) < selectedVehicle.pricePerKm ? '#22c55e' : 'var(--text-muted)' }}>
+                        <span>KM rate: </span>
+                        <span style={{ fontWeight: 700 }}>LKR {Number(form.pricePerKm)}/km</span>
                       </div>
                     )}
                     {form.pricePerDay && selectedVehicle && Number(form.pricePerDay) < selectedVehicle.pricePerDay && (
