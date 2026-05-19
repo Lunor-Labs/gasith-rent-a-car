@@ -18,7 +18,6 @@ export default function BookingDetailPage() {
 
   const [endForm, setEndForm] = useState({
     endMeterReading: '',
-    discountAmount: '0',
     endDate: new Date().toISOString().split('T')[0],
     outsourcedPayment: '',
     commissionRate: '10',
@@ -55,19 +54,8 @@ export default function BookingDetailPage() {
   };
 
   // ── Preview calculations ──────────────────────────────────────────────────
-  const previewPerKm = () => {
-    if (!booking || booking.isOutsourced || booking.billingMode === 'per_day') return null;
-    const end = Number(endForm.endMeterReading);
-    const start = booking.startMeterReading || 0;
-    if (!end || end <= start) return null;
-    const km = end - start;
-    const base = km * (booking.pricePerKm || 0);
-    const disc = Number(endForm.discountAmount) || 0;
-    return { km, base, disc, final: base - disc };
-  };
-
   const previewPerDay = () => {
-    if (!booking || booking.isOutsourced || booking.billingMode !== 'per_day') return null;
+    if (!booking || booking.isOutsourced) return null;
     if (!endForm.endDate || !booking.startDate) return null;
     if (!endForm.endMeterReading) return null;
 
@@ -120,7 +108,6 @@ export default function BookingDetailPage() {
     return { payment, comm, commAmt, net: payment - commAmt };
   };
 
-  const calcKm = previewPerKm();
   const calcDay = previewPerDay();
   const outsourcedCalc = outsourcedPreview();
 
@@ -131,7 +118,6 @@ export default function BookingDetailPage() {
       await completeBooking(id, {
         endDate: endForm.endDate,
         endMeterReading: Number(endForm.endMeterReading),
-        discountAmount: Number(endForm.discountAmount),
         outsourcedPayment: Number(endForm.outsourcedPayment),
         commissionRate: Number(endForm.commissionRate),
         freeKm: endForm.freeKm ? Number(endForm.freeKm) : undefined,
@@ -165,7 +151,6 @@ export default function BookingDetailPage() {
   if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}><div className="spinner" style={{ width: 36, height: 36 }} /></div>;
   if (!booking) return <div className="empty-state"><p>Booking not found</p><Link href="/admin/bookings" className="btn btn-secondary btn-sm">← Back</Link></div>;
 
-  const isPerDay = booking.billingMode === 'per_day';
 
   return (
     <div className="animate-fade">
@@ -175,7 +160,6 @@ export default function BookingDetailPage() {
         <div className="gold-line" />
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
           <h1 className="page-title" style={{ margin: 0 }}>Booking <span style={{ color: 'var(--gold)' }}>{id.slice(0, 8).toUpperCase()}</span></h1>
-          <span className={`badge ${isPerDay ? 'badge-gold' : 'badge-muted'}`}>{isPerDay ? '📅 Per Day' : '📏 Per KM'}</span>
           <span className={`badge ${booking.status === 'active' ? 'badge-info' : booking.status === 'completed' ? 'badge-success' : 'badge-muted'}`}>{booking.status}</span>
         </div>
       </div>
@@ -203,21 +187,16 @@ export default function BookingDetailPage() {
             <div style={{ fontWeight: 600, fontSize: '0.92rem' }}>{fmtDate(booking.startDate)}</div>
           </div>
 
-          {/* Key metric based on billing mode */}
+          {/* Rate / Day */}
           <div>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
-              {isPerDay ? 'Rate / Day' : 'Start Meter'}
-            </div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Rate / Day</div>
             <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--gold)' }}>
-              {isPerDay
-                ? `LKR ${(booking.pricePerDay || 0).toLocaleString()}`
-                : `${(booking.startMeterReading || 0).toLocaleString()} km`
-              }
+              LKR {(booking.pricePerDay || 0).toLocaleString()}
             </div>
           </div>
 
-          {/* Free KM (per_day only) */}
-          {isPerDay && booking.freeKm != null && (
+          {/* Free KM */}
+          {booking.freeKm != null && (
             <div>
               <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Free KM</div>
               <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--gold)' }}>{booking.freeKm} km</div>
@@ -236,7 +215,7 @@ export default function BookingDetailPage() {
       {booking.status === 'active' && (
         <div className="card" style={{ padding: '1.25rem' }}>
           <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            {booking.isOutsourced ? '💰' : isPerDay ? '📅' : '🏁'} Complete Booking
+            {booking.isOutsourced ? '💰' : '📅'} Complete Booking
           </div>
           <form onSubmit={handleComplete} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div className="grid-2">
@@ -256,7 +235,7 @@ export default function BookingDetailPage() {
                     <input type="number" className="form-input" value={endForm.commissionRate} min={0} max={100} onChange={e => setEndForm({ ...endForm, commissionRate: e.target.value })} />
                   </div>
                 </>
-              ) : isPerDay ? (
+              ) : (
                 <>
                   <div className="form-group">
                     <label className="form-label">End Meter Reading (km) *</label>
@@ -285,33 +264,14 @@ export default function BookingDetailPage() {
                     />
                   </div>
                 </>
-              ) : (
-                <>
-                  <div className="form-group">
-                    <label className="form-label">End Meter Reading (km) *</label>
-                    <input type="number" className="form-input" placeholder={`> ${booking.startMeterReading}`} value={endForm.endMeterReading} onChange={e => setEndForm({ ...endForm, endMeterReading: e.target.value })} required />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Discount (LKR)</label>
-                    <input type="number" className="form-input" placeholder="0" value={endForm.discountAmount} onChange={e => setEndForm({ ...endForm, discountAmount: e.target.value })} />
-                  </div>
-                </>
               )}
             </div>
 
             {/* Live preview */}
-            {(calcKm || calcDay || outsourcedCalc) && (
+            {(calcDay || outsourcedCalc) && (
               <div style={{ background: '#0f0f0f', border: '1px solid rgba(201,162,39,0.3)', borderRadius: 12, padding: '1rem' }}>
                 <div style={{ fontSize: '0.72rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.6rem' }}>Price Preview</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', fontSize: '0.88rem' }}>
-                  {calcKm && (
-                    <>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--text-muted)' }}>Distance</span><span>{calcKm.km.toLocaleString()} km</span></div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--text-muted)' }}>{calcKm.km} km × LKR {booking.pricePerKm}</span><span>LKR {calcKm.base.toLocaleString()}</span></div>
-                      {calcKm.disc > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', color: '#22c55e' }}><span>Discount</span><span>- LKR {calcKm.disc.toLocaleString()}</span></div>}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: '0.45rem', marginTop: '0.2rem', fontWeight: 700, fontSize: '1rem', color: 'var(--gold)' }}><span>Total</span><span>LKR {calcKm.final.toLocaleString()}</span></div>
-                    </>
-                  )}
                   {calcDay && (
                     <>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -393,21 +353,17 @@ export default function BookingDetailPage() {
           {/* Amount summary */}
           <div style={{ background: '#0f0f0f', border: '1px solid rgba(201,162,39,0.2)', borderRadius: 12, padding: '1rem', marginBottom: '1rem' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', fontSize: '0.88rem' }}>
-              {isPerDay && (
-                <>
-                  {booking.extraKm > 0 && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: 'var(--text-muted)' }}>Extra KM Charge ({booking.extraKm} km)</span>
-                      <span>LKR {(booking.extraKmCharge || 0).toLocaleString()}</span>
-                    </div>
-                  )}
-                  {booking.freeKm != null && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: 'var(--text-muted)' }}>Free KM Used</span>
-                      <span>{booking.freeKm} km</span>
-                    </div>
-                  )}
-                </>
+              {booking.extraKm > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>Extra KM Charge ({booking.extraKm} km)</span>
+                  <span>LKR {(booking.extraKmCharge || 0).toLocaleString()}</span>
+                </div>
+              )}
+              {booking.freeKm != null && (
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>Free KM Used</span>
+                  <span>{booking.freeKm} km</span>
+                </div>
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--text-muted)' }}>Base Amount</span><span>LKR {(booking.baseAmount || 0).toLocaleString()}</span></div>
               {booking.discountAmount > 0 && (

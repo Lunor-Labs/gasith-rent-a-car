@@ -96,7 +96,7 @@ router.post('/', authMiddleware, async (req, res) => {
       customerId, vehicleId, startDate, endDate,
       startMeterReading, pricePerKm, pricePerDay,
       freeKm, isOutsourced, outsourcedPayment,
-      commissionRate, billingMode, notes,
+      commissionRate, notes,
     } = req.body;
 
     const { data: vehicleData } = await supabase
@@ -107,25 +107,22 @@ router.post('/', authMiddleware, async (req, res) => {
 
     const defaultPricePerDay = vehicleData?.price_per_day || 0;
     const effectivePricePerDay = Number(pricePerDay) || defaultPricePerDay;
-    const effectiveBillingMode = billingMode || 'per_km';
 
-    // Resolve free_km for per_day bookings
+    // Resolve free_km from override or auto-calculate from dates
     let resolvedFreeKm: number | null = null;
-    if (effectiveBillingMode === 'per_day') {
-      if (freeKm != null && freeKm !== '') {
-        resolvedFreeKm = Number(freeKm);
-      } else if (startDate && endDate) {
-        const { data: config } = await supabase
-          .from('pricing_config')
-          .select('first_day_free_km, subsequent_day_free_km')
-          .eq('id', 1)
-          .single();
-        if (config) {
-          const start = new Date(startDate);
-          const end = new Date(endDate);
-          const days = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
-          resolvedFreeKm = config.first_day_free_km + (days - 1) * config.subsequent_day_free_km;
-        }
+    if (freeKm != null && freeKm !== '') {
+      resolvedFreeKm = Number(freeKm);
+    } else if (startDate && endDate) {
+      const { data: config } = await supabase
+        .from('pricing_config')
+        .select('first_day_free_km, subsequent_day_free_km')
+        .eq('id', 1)
+        .single();
+      if (config) {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        const days = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+        resolvedFreeKm = config.first_day_free_km + (days - 1) * config.subsequent_day_free_km;
       }
     }
 
@@ -142,7 +139,7 @@ router.post('/', authMiddleware, async (req, res) => {
         price_per_km: Number(pricePerKm) || vehicleData?.price_per_km || 0,
         price_per_day: effectivePricePerDay,
         default_price_per_day: defaultPricePerDay,
-        billing_mode: effectiveBillingMode,
+        billing_mode: 'per_day',
         free_km: resolvedFreeKm,
         extra_km: 0,
         extra_km_charge: 0,
@@ -186,7 +183,7 @@ router.post('/', authMiddleware, async (req, res) => {
 router.put('/:id/complete', authMiddleware, async (req, res) => {
   try {
     const {
-      endMeterReading, discountAmount, endDate,
+      endMeterReading, endDate,
       outsourcedPayment, commissionRate, freeKm,
     } = req.body;
 
@@ -213,7 +210,7 @@ router.put('/:id/complete', authMiddleware, async (req, res) => {
       finalAmount = payment - (payment * commission / 100);
       baseAmount = payment;
       computedDiscount = 0;
-    } else if (booking.billing_mode === 'per_day') {
+    } else {
       const { data: config } = await supabase
         .from('pricing_config')
         .select('first_day_free_km, subsequent_day_free_km')
@@ -252,14 +249,6 @@ router.put('/:id/complete', authMiddleware, async (req, res) => {
       computedDiscount = Math.max(0, rateDiscount + kmDiscount);
 
       finalAmount = baseAmount - computedDiscount;
-    } else {
-      // per_km billing (unchanged)
-      const endReading = Number(endMeterReading);
-      totalKm = endReading - (booking.start_meter_reading || 0);
-      baseAmount = totalKm * (booking.price_per_km || 0);
-      const discount = Number(discountAmount) || 0;
-      computedDiscount = discount;
-      finalAmount = baseAmount - discount;
     }
 
     const { error: updateError } = await supabase
@@ -273,7 +262,7 @@ router.put('/:id/complete', authMiddleware, async (req, res) => {
         final_amount: finalAmount,
         extra_km: extraKm,
         extra_km_charge: extraKmCharge,
-        ...(booking.billing_mode === 'per_day' ? {
+        ...(!booking.is_outsourced ? {
           default_free_km: computedDefaultFreeKm,
           free_km: resolvedFreeKm,
         } : {}),
