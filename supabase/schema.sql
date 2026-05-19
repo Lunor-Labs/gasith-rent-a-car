@@ -58,8 +58,15 @@ CREATE TABLE bookings (
   status            TEXT NOT NULL DEFAULT 'active'
                     CHECK (status IN ('active', 'completed', 'cancelled')),
   invoice_url       TEXT DEFAULT '',
-  notes             TEXT DEFAULT '',
-  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  notes                  TEXT DEFAULT '',
+  billing_mode           TEXT NOT NULL DEFAULT 'per_km'
+                         CHECK (billing_mode IN ('per_km', 'per_day')),
+  default_price_per_day  NUMERIC(10,2) NOT NULL DEFAULT 0,
+  default_free_km        NUMERIC(10,1),
+  free_km                NUMERIC(10,1),
+  extra_km               NUMERIC(12,1) NOT NULL DEFAULT 0,
+  extra_km_charge        NUMERIC(12,2) NOT NULL DEFAULT 0,
+  created_at             TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- ── Meter Readings ───────────────────────────────────────────
@@ -95,6 +102,19 @@ CREATE TABLE revenue (
   total_km       NUMERIC(14,1) NOT NULL DEFAULT 0,
   updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- ── Pricing Config ────────────────────────────────────────────
+CREATE TABLE pricing_config (
+  id                     INTEGER PRIMARY KEY DEFAULT 1,
+  first_day_free_km      NUMERIC(10,1) NOT NULL DEFAULT 150,
+  subsequent_day_free_km NUMERIC(10,1) NOT NULL DEFAULT 100,
+  updated_at             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT single_row CHECK (id = 1)
+);
+
+INSERT INTO pricing_config (id, first_day_free_km, subsequent_day_free_km)
+VALUES (1, 150, 100)
+ON CONFLICT (id) DO NOTHING;
 
 -- ── Indexes ──────────────────────────────────────────────────
 CREATE INDEX idx_bookings_customer ON bookings(customer_id);
