@@ -48,3 +48,8 @@ export const getRevenueStats = () => API.get('/bookings/stats/revenue');
 export const getInvoices = () => API.get('/invoices');
 export const generateInvoice = (bookingId: string) => API.post(`/invoices/generate/${bookingId}`);
 export const getWhatsAppLink = (invoiceId: string) => API.get(`/invoices/${invoiceId}/whatsapp`);
+
+// ─── Pricing Config ───────────────────────────────────────────────────────────
+export const getPricingConfig = () => API.get('/pricing-config');
+export const updatePricingConfig = (data: { firstDayFreeKm: number; subsequentDayFreeKm: number }) =>
+  API.put('/pricing-config', data);
