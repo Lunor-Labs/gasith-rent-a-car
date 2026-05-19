@@ -95,15 +95,39 @@ router.post('/', authMiddleware, async (req, res) => {
     const {
       customerId, vehicleId, startDate, endDate,
       startMeterReading, pricePerKm, pricePerDay,
-      isOutsourced, outsourcedPayment, commissionRate, billingMode, notes
+      freeKm, isOutsourced, outsourcedPayment,
+      commissionRate, billingMode, notes,
     } = req.body;
 
-    // Get vehicle's last meter reading
     const { data: vehicleData } = await supabase
       .from('vehicles')
       .select('last_meter_reading, price_per_km, price_per_day')
       .eq('id', vehicleId)
       .single();
+
+    const defaultPricePerDay = vehicleData?.price_per_day || 0;
+    const effectivePricePerDay = Number(pricePerDay) || defaultPricePerDay;
+    const effectiveBillingMode = billingMode || 'per_km';
+
+    // Resolve free_km for per_day bookings
+    let resolvedFreeKm: number | null = null;
+    if (effectiveBillingMode === 'per_day') {
+      if (freeKm != null && freeKm !== '') {
+        resolvedFreeKm = Number(freeKm);
+      } else if (startDate && endDate) {
+        const { data: config } = await supabase
+          .from('pricing_config')
+          .select('first_day_free_km, subsequent_day_free_km')
+          .eq('id', 1)
+          .single();
+        if (config) {
+          const start = new Date(startDate);
+          const end = new Date(endDate);
+          const days = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+          resolvedFreeKm = config.first_day_free_km + (days - 1) * config.subsequent_day_free_km;
+        }
+      }
+    }
 
     const { data, error } = await supabase
       .from('bookings')
@@ -116,8 +140,12 @@ router.post('/', authMiddleware, async (req, res) => {
         end_meter_reading: null,
         total_km: 0,
         price_per_km: Number(pricePerKm) || vehicleData?.price_per_km || 0,
-        price_per_day: Number(pricePerDay) || vehicleData?.price_per_day || 0,
-        billing_mode: billingMode || 'per_km',
+        price_per_day: effectivePricePerDay,
+        default_price_per_day: defaultPricePerDay,
+        billing_mode: effectiveBillingMode,
+        free_km: resolvedFreeKm,
+        extra_km: 0,
+        extra_km_charge: 0,
         base_amount: 0,
         discount_amount: 0,
         final_amount: 0,
@@ -133,13 +161,11 @@ router.post('/', authMiddleware, async (req, res) => {
 
     if (error) throw error;
 
-    // Mark vehicle as unavailable
     await supabase
       .from('vehicles')
       .update({ is_available: false })
       .eq('id', vehicleId);
 
-    // Record start meter reading
     await supabase
       .from('meter_readings')
       .insert({
