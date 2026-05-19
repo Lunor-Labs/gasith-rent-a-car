@@ -187,7 +187,7 @@ router.put('/:id/complete', authMiddleware, async (req, res) => {
   try {
     const {
       endMeterReading, discountAmount, endDate,
-      outsourcedPayment, commissionRate
+      outsourcedPayment, commissionRate, freeKm,
     } = req.body;
 
     const { data: booking, error: fetchError } = await supabase
@@ -201,33 +201,66 @@ router.put('/:id/complete', authMiddleware, async (req, res) => {
     let finalAmount = 0;
     let totalKm = 0;
     let baseAmount = 0;
+    let computedDiscount = 0;
+    let extraKm = 0;
+    let extraKmCharge = 0;
+    let resolvedFreeKm: number | null = null;
+    let computedDefaultFreeKm: number | null = null;
 
     if (booking.is_outsourced) {
-      // Outsourced: just record payment and commission
       const payment = Number(outsourcedPayment) || 0;
       const commission = Number(commissionRate) || booking.commission_rate || 10;
       finalAmount = payment - (payment * commission / 100);
       baseAmount = payment;
+      computedDiscount = 0;
     } else if (booking.billing_mode === 'per_day') {
-      // Per-day billing: calculate days between start and end
+      const { data: config } = await supabase
+        .from('pricing_config')
+        .select('first_day_free_km, subsequent_day_free_km')
+        .eq('id', 1)
+        .single();
+
       const start = new Date(booking.start_date);
       const end = endDate ? new Date(endDate) : new Date();
-      const diffMs = end.getTime() - start.getTime();
-      const days = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
-      baseAmount = days * (booking.price_per_day || 0);
-      totalKm = endMeterReading ? Number(endMeterReading) - booking.start_meter_reading : 0;
-      const discount = Number(discountAmount) || 0;
-      finalAmount = baseAmount - discount;
-    } else {
-      // Per-km billing (default)
+      const days = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+
       const endReading = Number(endMeterReading);
-      totalKm = endReading - booking.start_meter_reading;
+      totalKm = endReading - (booking.start_meter_reading || 0);
+
+      computedDefaultFreeKm = config
+        ? config.first_day_free_km + (days - 1) * config.subsequent_day_free_km
+        : (booking.free_km ?? 150);
+
+      // Priority: completion-time param → stored booking value → default
+      resolvedFreeKm = freeKm != null && freeKm !== ''
+        ? Number(freeKm)
+        : (booking.free_km ?? computedDefaultFreeKm);
+
+      const defaultPricePerDay = booking.default_price_per_day || booking.price_per_day || 0;
+      const pricePerDay = booking.price_per_day || 0;
+      const pricePerKm = booking.price_per_km || 0;
+
+      extraKm = Math.max(0, totalKm - resolvedFreeKm);
+      extraKmCharge = extraKm * pricePerKm;
+
+      const defaultExtraKm = Math.max(0, totalKm - computedDefaultFreeKm);
+      const defaultExtraKmCharge = defaultExtraKm * pricePerKm;
+      baseAmount = days * defaultPricePerDay + defaultExtraKmCharge;
+
+      const rateDiscount = (defaultPricePerDay - pricePerDay) * days;
+      const kmDiscount = defaultExtraKmCharge - extraKmCharge;
+      computedDiscount = Math.max(0, rateDiscount + kmDiscount);
+
+      finalAmount = baseAmount - computedDiscount;
+    } else {
+      // per_km billing (unchanged)
+      const endReading = Number(endMeterReading);
+      totalKm = endReading - (booking.start_meter_reading || 0);
       baseAmount = totalKm * (booking.price_per_km || 0);
       const discount = Number(discountAmount) || 0;
+      computedDiscount = discount;
       finalAmount = baseAmount - discount;
     }
-
-    const discount = Number(discountAmount) || 0;
 
     const { error: updateError } = await supabase
       .from('bookings')
@@ -236,8 +269,14 @@ router.put('/:id/complete', authMiddleware, async (req, res) => {
         end_date: endDate ? new Date(endDate).toISOString() : new Date().toISOString(),
         total_km: totalKm,
         base_amount: baseAmount,
-        discount_amount: discount,
+        discount_amount: computedDiscount,
         final_amount: finalAmount,
+        extra_km: extraKm,
+        extra_km_charge: extraKmCharge,
+        ...(booking.billing_mode === 'per_day' ? {
+          default_free_km: computedDefaultFreeKm,
+          free_km: resolvedFreeKm,
+        } : {}),
         outsourced_payment: outsourcedPayment ? Number(outsourcedPayment) : booking.outsourced_payment,
         commission_rate: Number(commissionRate) || booking.commission_rate,
         status: 'completed',
@@ -246,12 +285,13 @@ router.put('/:id/complete', authMiddleware, async (req, res) => {
 
     if (updateError) throw updateError;
 
-    // Mark vehicle as available and update last meter
     await supabase
       .from('vehicles')
       .update({
         is_available: true,
-        last_meter_reading: booking.is_outsourced ? booking.start_meter_reading : Number(endMeterReading),
+        last_meter_reading: booking.is_outsourced
+          ? booking.start_meter_reading
+          : Number(endMeterReading),
       })
       .eq('id', booking.vehicle_id);
 
@@ -267,7 +307,6 @@ router.put('/:id/complete', authMiddleware, async (req, res) => {
         });
     }
 
-    // Update monthly revenue (upsert)
     const monthKey = format(new Date(), 'yyyy-MM');
     const { data: revDoc } = await supabase
       .from('revenue')
@@ -394,7 +433,12 @@ function mapBookingToResponse(b: any) {
     totalKm: b.total_km,
     pricePerKm: b.price_per_km,
     pricePerDay: b.price_per_day,
+    defaultPricePerDay: b.default_price_per_day,
     billingMode: b.billing_mode || 'per_km',
+    defaultFreeKm: b.default_free_km,
+    freeKm: b.free_km,
+    extraKm: b.extra_km,
+    extraKmCharge: b.extra_km_charge,
     baseAmount: b.base_amount,
     discountAmount: b.discount_amount,
     finalAmount: b.final_amount,
