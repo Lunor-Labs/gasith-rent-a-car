@@ -75,7 +75,7 @@ export default function BookingDetailPage() {
 
     const freeKm = endForm.freeKm
       ? Number(endForm.freeKm)
-      : (booking.freeKm ?? autoDefaultFreeKm);
+      : autoDefaultFreeKm;
 
     const pricePerKm = booking.pricePerKm || 0;
     const pricePerDay = booking.pricePerDay || 0;

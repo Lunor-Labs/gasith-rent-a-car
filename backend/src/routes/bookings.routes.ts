@@ -240,10 +240,10 @@ router.put('/:id/complete', authMiddleware, async (req, res) => {
         ? (bookingD1 ?? (config?.first_day_free_km ?? 150)) + (days - 1) * (bookingSubseq ?? (config?.subsequent_day_free_km ?? 100))
         : computedDefaultFreeKm;
 
-      // Priority: completion-time param → auto-computed from booking rates → stored booking value → global default
+      // Priority: completion-time manual override → auto-computed from booking rates + actual days
       resolvedFreeKm = freeKm != null && freeKm !== ''
         ? Number(freeKm)
-        : (booking.free_km ?? autoFreeKm);
+        : autoFreeKm;
 
       const defaultPricePerDay = booking.default_price_per_day || booking.price_per_day || 0;
       const pricePerDay = booking.price_per_day || 0;
