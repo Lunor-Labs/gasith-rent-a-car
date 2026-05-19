@@ -33,7 +33,6 @@ export default function BookingDetailPage() {
       setEndForm(f => ({
         ...f,
         commissionRate: String(b.data.commissionRate || 10),
-        freeKm: b.data.freeKm != null ? String(b.data.freeKm) : '',
       }));
       const [c, v] = await Promise.all([
         getCustomer(b.data.customerId),
@@ -54,6 +53,19 @@ export default function BookingDetailPage() {
   };
 
   // ── Preview calculations ──────────────────────────────────────────────────
+  // Computed from end date alone — updates immediately when end date changes, no meter reading needed
+  const autoFreeKm = (() => {
+    if (!booking || !endForm.endDate || !booking.startDate) return null;
+    const start = new Date(typeof booking.startDate === 'string'
+      ? booking.startDate
+      : new Date(booking.startDate._seconds * 1000));
+    const end = new Date(endForm.endDate);
+    const days = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+    const d1 = booking.bookingFirstDayFreeKm ?? pricingConfig?.firstDayFreeKm ?? 150;
+    const sub = booking.bookingSubsequentDayFreeKm ?? pricingConfig?.subsequentDayFreeKm ?? 100;
+    return d1 + (days - 1) * sub;
+  })();
+
   const previewPerDay = () => {
     if (!booking || booking.isOutsourced) return null;
     if (!endForm.endDate || !booking.startDate) return null;
@@ -68,10 +80,7 @@ export default function BookingDetailPage() {
     const totalKm = Number(endForm.endMeterReading) - (booking.startMeterReading || 0);
     if (totalKm < 0) return null;
 
-    // Use per-booking rate overrides if set, else fall back to global config
-    const d1 = booking.bookingFirstDayFreeKm ?? pricingConfig?.firstDayFreeKm ?? 150;
-    const sub = booking.bookingSubsequentDayFreeKm ?? pricingConfig?.subsequentDayFreeKm ?? 100;
-    const autoDefaultFreeKm = d1 + (days - 1) * sub;
+    const autoDefaultFreeKm = autoFreeKm ?? 150;
 
     const freeKm = endForm.freeKm
       ? Number(endForm.freeKm)
@@ -251,15 +260,15 @@ export default function BookingDetailPage() {
                   <div className="form-group">
                     <label className="form-label">
                       Free KM
-                      {calcDay?.autoDefaultFreeKm != null && (
+                      {autoFreeKm != null && (
                         <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: '0.4rem', fontSize: '0.72rem' }}>
-                          (default: {calcDay.autoDefaultFreeKm} km)
+                          (auto: {autoFreeKm} km)
                         </span>
                       )}
                     </label>
                     <input
                       type="number" className="form-input" min={0}
-                      placeholder={calcDay?.autoDefaultFreeKm != null ? String(calcDay.autoDefaultFreeKm) : 'Auto'}
+                      placeholder={autoFreeKm != null ? String(autoFreeKm) : 'Set end date first'}
                       value={endForm.freeKm}
                       onChange={e => setEndForm({ ...endForm, freeKm: e.target.value })}
                     />
