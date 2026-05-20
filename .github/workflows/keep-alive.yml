@@ -12,8 +12,8 @@ jobs:
     steps:
       - name: Ping backend health
         run: |
-          echo "Pinging ${{ secrets.NEXT_PUBLIC_API_URL }}/api/health ..."
-          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 90 "${{ secrets.NEXT_PUBLIC_API_URL }}/api/health" || echo "timeout")
+          echo "Pinging ${{ secrets.NEXT_PUBLIC_API_URL }}/health ..."
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 90 "${{ secrets.NEXT_PUBLIC_API_URL }}/health" || echo "timeout")
           echo "HTTP $RESPONSE"
           if [ "$RESPONSE" = "200" ]; then
             echo "Backend is alive"
