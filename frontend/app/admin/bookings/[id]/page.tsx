@@ -60,7 +60,7 @@ export default function BookingDetailPage() {
       ? booking.startDate
       : new Date(booking.startDate._seconds * 1000));
     const end = new Date(endForm.endDate);
-    const days = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+    const days = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
     const d1 = booking.bookingFirstDayFreeKm ?? pricingConfig?.firstDayFreeKm ?? 150;
     const sub = booking.bookingSubsequentDayFreeKm ?? pricingConfig?.subsequentDayFreeKm ?? 100;
     return d1 + (days - 1) * sub;
@@ -75,7 +75,7 @@ export default function BookingDetailPage() {
       ? booking.startDate
       : new Date(booking.startDate._seconds * 1000));
     const end = new Date(endForm.endDate);
-    const days = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+    const days = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
 
     const totalKm = Number(endForm.endMeterReading) - (booking.startMeterReading || 0);
     if (totalKm < 0) return null;
@@ -213,6 +213,13 @@ export default function BookingDetailPage() {
             </div>
           )}
         </div>
+
+        {booking.notes && (
+          <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border-subtle)' }}>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Notes</div>
+            <div style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', whiteSpace: 'pre-wrap', lineHeight: 1.55 }}>{booking.notes}</div>
+          </div>
+        )}
 
         {booking.isOutsourced && (
           <div style={{ marginTop: '0.75rem' }}>
