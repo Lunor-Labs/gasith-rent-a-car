@@ -124,7 +124,7 @@ router.post('/', authMiddleware, async (req, res) => {
         const sub = subsequentDayFreeKm != null && subsequentDayFreeKm !== '' ? Number(subsequentDayFreeKm) : config.subsequent_day_free_km;
         const start = new Date(startDate);
         const end = new Date(endDate);
-        const days = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+        const days = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
         resolvedFreeKm = d1 + (days - 1) * sub;
       }
     }

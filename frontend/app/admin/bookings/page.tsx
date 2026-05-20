@@ -56,7 +56,7 @@ export default function BookingsPage() {
     if (!start || !end) return null;
     const days = Math.max(1, Math.ceil(
       (new Date(end).getTime() - new Date(start).getTime()) / (1000 * 60 * 60 * 24)
-    ));
+    ) + 1);
     const d1 = form.firstDayFreeKm ? Number(form.firstDayFreeKm) : (pricingConfig?.firstDayFreeKm ?? 150);
     const sub = form.subsequentDayFreeKm ? Number(form.subsequentDayFreeKm) : (pricingConfig?.subsequentDayFreeKm ?? 100);
     return d1 + (days - 1) * sub;
@@ -67,7 +67,7 @@ export default function BookingsPage() {
   const previewDays = (form.startDate && form.endDate)
     ? Math.max(1, Math.ceil(
         (new Date(form.endDate).getTime() - new Date(form.startDate).getTime()) / (1000 * 60 * 60 * 24)
-      ))
+      ) + 1)
     : null;
 
   const handleCreate = async (e: React.FormEvent) => {
