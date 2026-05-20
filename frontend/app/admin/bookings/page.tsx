@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { getBookings, getCustomers, getVehicles, createBooking, deleteBooking, getPricingConfig } from '@/lib/api';
+import CustomerFormModal from '@/components/CustomerFormModal';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { Plus, Trash2, CalendarDays, Route, CalendarCheck, CalendarPlus, Users, Car, Gauge, Banknote, NotebookPen } from 'lucide-react';
@@ -22,6 +23,7 @@ export default function BookingsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [filter, setFilter] = useState('all');
+  const [customerModalOpen, setCustomerModalOpen] = useState(false);
   const [form, setForm] = useState({
     customerId: '',
     vehicleId: '',
@@ -89,10 +91,18 @@ export default function BookingsPage() {
       });
       toast.success('Booking created');
       setModalOpen(false);
+      setCustomerModalOpen(false);
       setForm({ customerId: '', vehicleId: '', startDate: '', endDate: '', startMeterReading: '', pricePerDay: '', pricePerKm: '', firstDayFreeKm: '', subsequentDayFreeKm: '', notes: '' });
       load();
     } catch (err: any) { toast.error(err?.response?.data?.error || 'Failed to create booking'); }
     finally { setSubmitting(false); }
+  };
+
+  const handleCustomerSaved = async (id: string) => {
+    const updated = await getCustomers();
+    setCustomers(updated.data);
+    setForm(f => ({ ...f, customerId: id }));
+    setCustomerModalOpen(false);
   };
 
   const handleDelete = async (id: string) => {
@@ -253,8 +263,14 @@ export default function BookingsPage() {
 
                 {/* Customer */}
                 <div className="form-group" style={{ marginBottom: '0.75rem' }}>
-                  <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                    <Users size={11} strokeWidth={2} style={{ color: 'var(--text-muted)' }} /> Customer *
+                  <label className="form-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <Users size={11} strokeWidth={2} style={{ color: 'var(--text-muted)' }} /> Customer *
+                    </span>
+                    <button type="button" onClick={() => setCustomerModalOpen(true)}
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.7rem', color: 'var(--gold)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                      <Plus size={11} strokeWidth={2.5} /> New
+                    </button>
                   </label>
                   <select className="form-select" value={form.customerId} onChange={e => setForm({ ...form, customerId: e.target.value })} required>
                     <option value="">Select a customer...</option>
@@ -469,6 +485,12 @@ export default function BookingsPage() {
           </div>
         </div>
       )}
+
+      <CustomerFormModal
+        open={customerModalOpen}
+        onClose={() => setCustomerModalOpen(false)}
+        onSaved={handleCustomerSaved}
+      />
     </div>
   );
 }
