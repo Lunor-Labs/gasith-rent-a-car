@@ -1,0 +1,23 @@
+name: Keep Alive (Render)
+
+on:
+  schedule:
+    - cron: '*/14 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Ping backend health
+        run: |
+          echo "Pinging ${{ secrets.NEXT_PUBLIC_API_URL }}/api/health ..."
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 "${{ secrets.NEXT_PUBLIC_API_URL }}/api/health")
+          echo "HTTP $RESPONSE"
+          if [ "$RESPONSE" -eq 200 ]; then
+            echo "Backend is alive"
+          else
+            echo "Warning: backend returned HTTP $RESPONSE (may be waking up)"
+          fi
