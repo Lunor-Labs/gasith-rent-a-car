@@ -36,7 +36,7 @@ type Vehicle = {
 };
 
 const EMPTY = { name: '', type: 'Sedan', plate: '', pricePerKm: 0, pricePerDay: 0, isOutsourced: false, commissionRate: 10, initialMeterReading: 0, isAvailable: true, showOnLanding: false };
-const TYPES = ['Sedan', 'SUV', 'Van', 'Bus', 'Truck', 'Motorbike', 'Other'];
+const TYPES = ['Sedan', 'Hatchback', 'SUV', 'Van', 'Bus', 'Truck', 'Motorbike', 'Other'];
 
 
 export default function VehiclesPage() {

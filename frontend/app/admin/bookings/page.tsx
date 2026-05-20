@@ -27,6 +27,7 @@ export default function BookingsPage() {
     vehicleId: '',
     startDate: '',
     endDate: '',
+    startMeterReading: '',
     pricePerDay: '',
     pricePerKm: '',
     firstDayFreeKm: '',
@@ -76,7 +77,7 @@ export default function BookingsPage() {
         startDate: form.startDate,
         endDate: form.endDate || undefined,
         notes: form.notes,
-        startMeterReading: selectedVehicle?.lastMeterReading || 0,
+        startMeterReading: form.startMeterReading !== '' ? Number(form.startMeterReading) : (selectedVehicle?.lastMeterReading || 0),
         pricePerKm: form.pricePerKm ? Number(form.pricePerKm) : selectedVehicle?.pricePerKm || 0,
         pricePerDay: form.pricePerDay ? Number(form.pricePerDay) : selectedVehicle?.pricePerDay || 0,
         firstDayFreeKm: form.firstDayFreeKm ? Number(form.firstDayFreeKm) : undefined,
@@ -88,7 +89,7 @@ export default function BookingsPage() {
       });
       toast.success('Booking created');
       setModalOpen(false);
-      setForm({ customerId: '', vehicleId: '', startDate: '', endDate: '', pricePerDay: '', pricePerKm: '', firstDayFreeKm: '', subsequentDayFreeKm: '', notes: '' });
+      setForm({ customerId: '', vehicleId: '', startDate: '', endDate: '', startMeterReading: '', pricePerDay: '', pricePerKm: '', firstDayFreeKm: '', subsequentDayFreeKm: '', notes: '' });
       load();
     } catch (err: any) { toast.error(err?.response?.data?.error || 'Failed to create booking'); }
     finally { setSubmitting(false); }
@@ -269,7 +270,10 @@ export default function BookingsPage() {
                       <span style={{ marginLeft: '0.3rem', fontSize: '0.7rem', color: 'var(--danger)', fontWeight: 400 }}>— none available</span>
                     )}
                   </label>
-                  <select className="form-select" value={form.vehicleId} onChange={e => setForm({ ...form, vehicleId: e.target.value })} required>
+                  <select className="form-select" value={form.vehicleId} onChange={e => {
+                    const v = vehicles.find(v => v.id === e.target.value);
+                    setForm({ ...form, vehicleId: e.target.value, startMeterReading: String(v?.lastMeterReading ?? '') });
+                  }} required>
                     <option value="">Select a vehicle...</option>
                     {availableVehicles.map(v => (
                       <option key={v.id} value={v.id}>{v.name} ({v.plate}){v.isOutsourced ? ' — Outsourced' : ''}</option>
@@ -343,6 +347,19 @@ export default function BookingsPage() {
                     />
                   </div>
                 </div>
+
+                {/* Start odometer */}
+                {selectedVehicle && !selectedVehicle.isOutsourced && (
+                  <div className="form-group" style={{ marginBottom: '0.85rem' }}>
+                    <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <Gauge size={11} strokeWidth={2} style={{ color: 'var(--text-muted)' }} /> Start Odometer (km)
+                    </label>
+                    <input type="number" className="form-input" min={0}
+                      value={form.startMeterReading}
+                      onChange={e => setForm({ ...form, startMeterReading: e.target.value })}
+                    />
+                  </div>
+                )}
 
                 {/* Rate overrides */}
                 <div className="grid-2" style={{ marginBottom: '0.85rem' }}>
