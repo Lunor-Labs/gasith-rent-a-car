@@ -214,6 +214,13 @@ export default function BookingDetailPage() {
           )}
         </div>
 
+        {booking.notes && (
+          <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border-subtle)' }}>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Notes</div>
+            <div style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', whiteSpace: 'pre-wrap', lineHeight: 1.55 }}>{booking.notes}</div>
+          </div>
+        )}
+
         {booking.isOutsourced && (
           <div style={{ marginTop: '0.75rem' }}>
             <span className="badge badge-warning">Outsourced · {booking.commissionRate}% commission</span>
