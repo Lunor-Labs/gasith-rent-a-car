@@ -189,7 +189,7 @@ router.put('/:id/complete', authMiddleware, async (req, res) => {
   try {
     const {
       endMeterReading, endDate,
-      outsourcedPayment, commissionRate, freeKm,
+      outsourcedPayment, commissionRate, freeKm, additionalDiscount,
     } = req.body;
 
     const { data: booking, error: fetchError } = await supabase
@@ -258,9 +258,10 @@ router.put('/:id/complete', authMiddleware, async (req, res) => {
 
       const rateDiscount = (defaultPricePerDay - pricePerDay) * days;
       const kmDiscount = defaultExtraKmCharge - extraKmCharge;
-      computedDiscount = Math.max(0, rateDiscount + kmDiscount);
+      const extraDiscount = Number(additionalDiscount) || 0;
+      computedDiscount = Math.max(0, rateDiscount + kmDiscount) + extraDiscount;
 
-      finalAmount = baseAmount - computedDiscount;
+      finalAmount = Math.max(0, baseAmount - computedDiscount);
     }
 
     const { error: updateError } = await supabase
@@ -271,6 +272,7 @@ router.put('/:id/complete', authMiddleware, async (req, res) => {
         total_km: totalKm,
         base_amount: baseAmount,
         discount_amount: computedDiscount,
+        additional_discount: Number(additionalDiscount) || 0,
         final_amount: finalAmount,
         extra_km: extraKm,
         extra_km_charge: extraKmCharge,
@@ -444,6 +446,7 @@ function mapBookingToResponse(b: any) {
     extraKmCharge: b.extra_km_charge,
     baseAmount: b.base_amount,
     discountAmount: b.discount_amount,
+    additionalDiscount: b.additional_discount,
     finalAmount: b.final_amount,
     isOutsourced: b.is_outsourced,
     outsourcedPayment: b.outsourced_payment,

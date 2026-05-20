@@ -22,6 +22,7 @@ export default function BookingDetailPage() {
     outsourcedPayment: '',
     commissionRate: '10',
     freeKm: '',
+    additionalDiscount: '',
   });
 
   const load = async () => {
@@ -98,14 +99,15 @@ export default function BookingDetailPage() {
 
     const rateDiscount = Math.max(0, (defaultPricePerDay - pricePerDay) * days);
     const kmDiscount = Math.max(0, defaultExtraKmCharge - extraKmCharge);
-    const totalDiscount = rateDiscount + kmDiscount;
+    const additionalDiscount = Number(endForm.additionalDiscount) || 0;
+    const totalDiscount = rateDiscount + kmDiscount + additionalDiscount;
 
     const base = days * defaultPricePerDay + defaultExtraKmCharge;
-    const final = base - totalDiscount;
+    const final = Math.max(0, base - totalDiscount);
 
     return {
       days, totalKm, freeKm, autoDefaultFreeKm, extraKm, extraKmCharge,
-      pricePerDay, defaultPricePerDay, rateDiscount, kmDiscount, totalDiscount,
+      pricePerDay, defaultPricePerDay, rateDiscount, kmDiscount, additionalDiscount, totalDiscount,
       base, final,
     };
   };
@@ -131,6 +133,7 @@ export default function BookingDetailPage() {
         outsourcedPayment: Number(endForm.outsourcedPayment),
         commissionRate: Number(endForm.commissionRate),
         freeKm: endForm.freeKm ? Number(endForm.freeKm) : undefined,
+        additionalDiscount: endForm.additionalDiscount ? Number(endForm.additionalDiscount) : 0,
       });
       toast.success('Booking completed!'); load();
     } catch (err: any) { toast.error(err?.response?.data?.error || 'Failed'); }
@@ -284,6 +287,19 @@ export default function BookingDetailPage() {
               )}
             </div>
 
+            {/* Additional Discount */}
+            {!booking.isOutsourced && (
+              <div className="form-group">
+                <label className="form-label">Additional Discount (LKR)</label>
+                <input
+                  type="number" className="form-input" min={0}
+                  placeholder="0"
+                  value={endForm.additionalDiscount}
+                  onChange={e => setEndForm({ ...endForm, additionalDiscount: e.target.value })}
+                />
+              </div>
+            )}
+
             {/* Live preview */}
             {(calcDay || outsourcedCalc) && (
               <div style={{ background: '#0f0f0f', border: '1px solid rgba(201,162,39,0.3)', borderRadius: 12, padding: '1rem' }}>
@@ -338,6 +354,12 @@ export default function BookingDetailPage() {
                           <span>− LKR {calcDay.kmDiscount.toLocaleString()}</span>
                         </div>
                       )}
+                      {calcDay.additionalDiscount > 0 && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#22c55e' }}>
+                          <span>Additional Discount</span>
+                          <span>− LKR {calcDay.additionalDiscount.toLocaleString()}</span>
+                        </div>
+                      )}
                       <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: '0.45rem', marginTop: '0.2rem', fontWeight: 700, fontSize: '1rem', color: 'var(--gold)' }}>
                         <span>Total</span>
                         <span>LKR {calcDay.final.toLocaleString()}</span>
@@ -383,8 +405,11 @@ export default function BookingDetailPage() {
                 </div>
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--text-muted)' }}>Base Amount</span><span>LKR {(booking.baseAmount || 0).toLocaleString()}</span></div>
-              {booking.discountAmount > 0 && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#22c55e' }}><span>Discount</span><span>- LKR {booking.discountAmount.toLocaleString()}</span></div>
+              {(booking.discountAmount - (booking.additionalDiscount || 0)) > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#22c55e' }}><span>Rate / KM Discount</span><span>- LKR {(booking.discountAmount - (booking.additionalDiscount || 0)).toLocaleString()}</span></div>
+              )}
+              {booking.additionalDiscount > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#22c55e' }}><span>Additional Discount</span><span>- LKR {booking.additionalDiscount.toLocaleString()}</span></div>
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: '0.45rem', marginTop: '0.2rem', fontWeight: 700, fontSize: '1.05rem', color: 'var(--gold)' }}>
                 <span>Total</span><span>LKR {(booking.finalAmount || 0).toLocaleString()}</span>
