@@ -1,23 +1,23 @@
-Name: Keep Alive (Render)
+name: Keep Alive (Render)
 
-On:
-  Schedule:
-    - Cron: '*/14 * * * *'
-  Workflow_dispatch:
+on:
+  schedule:
+    - cron: '*/14 * * * *'
+  workflow_dispatch:
 
-Jobs:
-  Ping:
-    Runs-on: ubuntu-latest
-    Environment: development
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    environment: production
 
-    Steps:
-      - Name: Ping backend health
-        Run: |
-          Echo "Pinging ${{ secrets.NEXT_PUBLIC_API_URL }}/api/health ..."
+    steps:
+      - name: Ping backend health
+        run: |
+          echo "Pinging ${{ secrets.NEXT_PUBLIC_API_URL }}/api/health ..."
           RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 "${{ secrets.NEXT_PUBLIC_API_URL }}/api/health")
-          Echo "HTTP $RESPONSE"
-          If [ "$RESPONSE" -eq 200 ]; then
-            Echo "Backend is alive"
-          Else
-            Echo "Warning: backend returned HTTP $RESPONSE (may be waking up)"
-          Fi
+          echo "HTTP $RESPONSE"
+          if [ "$RESPONSE" -eq 200 ]; then
+            echo "Backend is alive"
+          else
+            echo "Warning: backend returned HTTP $RESPONSE (may be waking up)"
+          fi
