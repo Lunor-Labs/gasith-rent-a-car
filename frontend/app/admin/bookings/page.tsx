@@ -7,7 +7,7 @@ import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { Plus, Trash2, CalendarDays, Route, CalendarCheck, CalendarPlus, Users, Car, Gauge, Banknote, NotebookPen } from 'lucide-react';
 
-type Booking = { id: string; customerId: string; vehicleId: string; status: string; startDate: any; endDate: any; finalAmount: number; totalKm: number; isOutsourced: boolean; billingMode: string; };
+type Booking = { id: string; customerId: string; vehicleId: string; status: string; startDate: any; endDate: any; finalAmount: number; totalKm: number; isOutsourced: boolean; billingMode: string; notes: string; };
 type Customer = { id: string; name: string; phone: string; };
 type Vehicle = { id: string; name: string; plate: string; isAvailable: boolean; pricePerKm: number; pricePerDay: number; lastMeterReading: number; isOutsourced: boolean; commissionRate: number; };
 
@@ -181,7 +181,10 @@ export default function BookingsPage() {
                 {filtered.map(b => (
                   <tr key={b.id}>
                     <td><code style={{ fontSize: '0.78rem', color: 'var(--gold)' }}>{b.id.slice(0, 8).toUpperCase()}</code></td>
-                    <td style={{ fontWeight: 500 }}>{cusName(b.customerId)}</td>
+                    <td style={{ fontWeight: 500 }}>
+                      {cusName(b.customerId)}
+                      {b.notes && <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2, fontStyle: 'italic' }}>{b.notes}</div>}
+                    </td>
                     <td style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{vehName(b.vehicleId)}</td>
                     <td><span className={`badge ${STATUS_COLORS[b.status] || 'badge-muted'}`}>{b.status}</span></td>
                     <td style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{fmtDate(b.startDate)}</td>
@@ -211,6 +214,7 @@ export default function BookingsPage() {
                   <div>
                     <div style={{ fontWeight: 600, fontSize: '0.92rem' }}>{cusName(b.customerId)}</div>
                     <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 2 }}>{vehName(b.vehicleId)}</div>
+                    {b.notes && <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 3, fontStyle: 'italic' }}>{b.notes}</div>}
                   </div>
                   <span className={`badge ${STATUS_COLORS[b.status] || 'badge-muted'}`}>{b.status}</span>
                 </div>
