@@ -13,10 +13,10 @@ jobs:
       - name: Ping backend health
         run: |
           echo "Pinging ${{ secrets.NEXT_PUBLIC_API_URL }}/api/health ..."
-          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 "${{ secrets.NEXT_PUBLIC_API_URL }}/api/health")
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 90 "${{ secrets.NEXT_PUBLIC_API_URL }}/api/health" || echo "timeout")
           echo "HTTP $RESPONSE"
-          if [ "$RESPONSE" -eq 200 ]; then
+          if [ "$RESPONSE" = "200" ]; then
             echo "Backend is alive"
           else
-            echo "Warning: backend returned HTTP $RESPONSE (may be waking up)"
+            echo "Warning: backend returned $RESPONSE (cold start or waking up)"
           fi
