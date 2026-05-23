@@ -104,8 +104,10 @@ jobs:
         run: |
           echo "🚀 Triggering Render deployment..."
           RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "${{ secrets.RENDER_DEPLOY_HOOK_URL }}")
-          if [ "$RESPONSE" -eq 200 ] || [ "$RESPONSE" -eq 201 ]; then
-            echo "✅ Render deploy triggered successfully (HTTP $RESPONSE)"
+          if [ "$RESPONSE" -eq 201 ]; then
+            echo "✅ Render deploy queued successfully (HTTP $RESPONSE)"
+          elif [ "$RESPONSE" -eq 200 ] || [ "$RESPONSE" -eq 202 ]; then
+            echo "✅ Render deploy successful (HTTP $RESPONSE)"
           else
             echo "❌ Render deploy trigger failed (HTTP $RESPONSE)"
             exit 1
@@ -197,8 +199,10 @@ jobs:
         run: |
           echo "🚀 Triggering Render production deployment..."
           RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "${{ secrets.RENDER_DEPLOY_HOOK_URL }}")
-          if [ "$RESPONSE" -eq 200 ] || [ "$RESPONSE" -eq 201 ]; then
-            echo "✅ Render deploy triggered successfully (HTTP $RESPONSE)"
+          if [ "$RESPONSE" -eq 201 ]; then
+            echo "✅ Render deploy queued successfully (HTTP $RESPONSE)"
+          elif [ "$RESPONSE" -eq 200 ] || [ "$RESPONSE" -eq 202 ]; then
+            echo "✅ Render deploy successful (HTTP $RESPONSE)"
           else
             echo "❌ Render deploy trigger failed (HTTP $RESPONSE)"
             exit 1

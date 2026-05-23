@@ -4,15 +4,21 @@ import { authMiddleware } from '../middleware/auth.middleware';
 
 const router = Router();
 
-// GET /reports/financial — monthly income breakdown (owned revenue vs outsourced commission)
+// GET /reports/financial — monthly income breakdown, optionally filtered by date range
 router.get('/financial', authMiddleware, async (req, res) => {
   try {
-    const { data: bookings, error } = await supabase
+    const { from, to } = req.query;
+
+    let query = supabase
       .from('bookings')
       .select('end_date, start_date, final_amount, commission_amount, is_outsourced')
       .eq('status', 'completed')
       .order('end_date', { ascending: false });
 
+    if (from) query = query.gte('end_date', from as string);
+    if (to)   query = query.lte('end_date', `${to}T23:59:59`);
+
+    const { data: bookings, error } = await query;
     if (error) throw error;
 
     const monthMap: Record<string, {
@@ -52,16 +58,22 @@ router.get('/financial', authMiddleware, async (req, res) => {
   }
 });
 
-// GET /reports/commissions — outsourced bookings with commission detail
+// GET /reports/commissions — outsourced bookings with commission detail and paid status
 router.get('/commissions', authMiddleware, async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const { from, to } = req.query;
+
+    let query = supabase
       .from('bookings')
       .select('*, customers(name, phone), vehicles(name, plate)')
       .eq('status', 'completed')
       .eq('is_outsourced', true)
       .order('end_date', { ascending: false });
 
+    if (from) query = query.gte('end_date', from as string);
+    if (to)   query = query.lte('end_date', `${to}T23:59:59`);
+
+    const { data, error } = await query;
     if (error) throw error;
 
     res.json((data || []).map((b: any) => ({
@@ -76,7 +88,32 @@ router.get('/commissions', authMiddleware, async (req, res) => {
       tripPrice: b.final_amount,
       commissionAmount: b.commission_amount,
       netToOwner: Math.max(0, (b.final_amount || 0) - (b.commission_amount || 0)),
+      commissionPaid: b.commission_paid || false,
     })));
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PATCH /reports/commissions/:id/toggle-paid — toggle commission_paid on a booking
+router.patch('/commissions/:id/toggle-paid', authMiddleware, async (req, res) => {
+  try {
+    const { data: booking, error: fetchErr } = await supabase
+      .from('bookings')
+      .select('commission_paid')
+      .eq('id', req.params.id)
+      .single();
+
+    if (fetchErr || !booking) return res.status(404).json({ error: 'Booking not found' });
+
+    const newValue = !booking.commission_paid;
+    const { error } = await supabase
+      .from('bookings')
+      .update({ commission_paid: newValue })
+      .eq('id', req.params.id);
+
+    if (error) throw error;
+    res.json({ commissionPaid: newValue });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -94,7 +131,7 @@ router.get('/bookings', authMiddleware, async (req, res) => {
       .order('end_date', { ascending: false });
 
     if (from) query = query.gte('end_date', from as string);
-    if (to) query = query.lte('end_date', `${to}T23:59:59`);
+    if (to)   query = query.lte('end_date', `${to}T23:59:59`);
 
     const { data, error } = await query;
     if (error) throw error;
@@ -119,9 +156,11 @@ router.get('/bookings', authMiddleware, async (req, res) => {
   }
 });
 
-// GET /reports/vehicles — per-vehicle utilization and income stats
+// GET /reports/vehicles — per-vehicle utilization and income stats, optionally filtered by date range
 router.get('/vehicles', authMiddleware, async (req, res) => {
   try {
+    const { from, to } = req.query;
+
     const { data: vehicles, error: vErr } = await supabase
       .from('vehicles')
       .select('id, name, plate, is_outsourced')
@@ -129,11 +168,15 @@ router.get('/vehicles', authMiddleware, async (req, res) => {
 
     if (vErr) throw vErr;
 
-    const { data: bookings, error: bErr } = await supabase
+    let bQuery = supabase
       .from('bookings')
       .select('vehicle_id, final_amount, commission_amount, total_km, is_outsourced, start_date, end_date')
       .eq('status', 'completed');
 
+    if (from) bQuery = bQuery.gte('end_date', from as string);
+    if (to)   bQuery = bQuery.lte('end_date', `${to}T23:59:59`);
+
+    const { data: bookings, error: bErr } = await bQuery;
     if (bErr) throw bErr;
 
     const stats = (vehicles || []).map(v => {
