@@ -2,7 +2,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { getDashboardStats } from '@/lib/api';
@@ -87,12 +86,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* ── Sidebar ── */}
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         {/* Brand */}
-        <div className="sidebar-logo">
-          <Image src="/logo.webp" alt="Gasith" width={40} height={40} style={{ borderRadius: 8, marginRight: '0.5rem', verticalAlign: 'middle', display: 'inline-block' }} />
-          <span>Gasith</span> Rent a Car
-          <div className="sidebar-logo-sub">Admin Portal</div>
+        <div className="sidebar-brand">
+          <div className="brand-mark">G</div>
+          <div>
+            <div className="brand-name">Gasith</div>
+            <div className="brand-sub">Rent a Car</div>
+          </div>
         </div>
-        <div className="sidebar-separator" />
 
         {/* Nav */}
         <nav className="sidebar-nav">
@@ -106,7 +106,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 className={`nav-item ${isActive({ href, exact }) ? 'active' : ''}`}
                 onClick={() => setSidebarOpen(false)}
               >
-                <span className="nav-item-icon"><Icon size={15} strokeWidth={1.5} /></span>
+                <span className="nav-item-icon"><Icon size={17} strokeWidth={1.5} /></span>
                 {label}
                 {badge != null && <span className="nav-badge">{badge}</span>}
               </Link>
@@ -121,7 +121,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               className={`nav-item ${isActive({ href, exact }) ? 'active' : ''}`}
               onClick={() => setSidebarOpen(false)}
             >
-              <span className="nav-item-icon"><Icon size={15} strokeWidth={1.5} /></span>
+              <span className="nav-item-icon"><Icon size={17} strokeWidth={1.5} /></span>
               {label}
             </Link>
           ))}
@@ -130,16 +130,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* User row */}
         <div className="sidebar-user-row">
           <div className="sidebar-user-avatar">{initials}</div>
-          <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-            <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {displayName}
-            </div>
-            <div style={{ fontSize: '0.66rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {user.email}
-            </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="user-name">{displayName}</div>
+            <div className="user-mail">{user.email}</div>
           </div>
-          <button onClick={handleLogout} className="topbar-action-btn" title="Logout" style={{ flexShrink: 0 }}>
-            <LogOut size={14} strokeWidth={1.5} />
+          <button onClick={handleLogout} className="sidebar-logout-btn" title="Logout">
+            <LogOut size={13} strokeWidth={1.5} />
           </button>
         </div>
       </aside>
