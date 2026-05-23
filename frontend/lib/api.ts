@@ -53,3 +53,9 @@ export const getWhatsAppLink = (invoiceId: string) => API.get(`/invoices/${invoi
 export const getPricingConfig = () => API.get('/pricing-config');
 export const updatePricingConfig = (data: { firstDayFreeKm: number; subsequentDayFreeKm: number }) =>
   API.put('/pricing-config', data);
+
+// ─── Reports ──────────────────────────────────────────────────────────────────
+export const getReportFinancial = () => API.get('/reports/financial');
+export const getReportCommissions = () => API.get('/reports/commissions');
+export const getReportBookings = (params?: { from?: string; to?: string }) => API.get('/reports/bookings', { params });
+export const getReportVehicles = () => API.get('/reports/vehicles');
