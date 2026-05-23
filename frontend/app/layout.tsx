@@ -1,11 +1,12 @@
 import type { Metadata, Viewport } from 'next';
-import { Geist } from 'next/font/google';
+import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { Toaster } from 'react-hot-toast';
 
-const geist = Geist({ subsets: ['latin'], variable: '--font-geist' });
+const geist     = Geist({ subsets: ['latin'], variable: '--font-geist' });
+const geistMono = Geist_Mono({ subsets: ['latin'], variable: '--font-geist-mono', weight: ['400', '500', '600'] });
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -58,7 +59,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
       </head>
-      <body className={geist.variable}>
+      <body className={`${geist.variable} ${geistMono.variable}`}>
         <ThemeProvider>
         <AuthProvider>
           {children}

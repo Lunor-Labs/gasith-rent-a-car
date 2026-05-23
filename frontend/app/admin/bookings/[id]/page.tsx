@@ -19,9 +19,9 @@ export default function BookingDetailPage() {
   const [endForm, setEndForm] = useState({
     endMeterReading: '',
     endDate: new Date().toISOString().split('T')[0],
-    outsourcedPayment: '',
-    commissionRate: '10',
+    commissionAmount: '',      // blank = use auto-calc
     freeKm: '',
+    additionalDiscount: '',
   });
 
   const load = async () => {
@@ -32,7 +32,8 @@ export default function BookingDetailPage() {
       setPricingConfig(p.data);
       setEndForm(f => ({
         ...f,
-        commissionRate: String(b.data.commissionRate || 10),
+        // pre-fill only if a custom commission was previously saved
+        commissionAmount: b.data.commissionAmount != null ? String(b.data.commissionAmount) : '',
       }));
       const [c, v] = await Promise.all([
         getCustomer(b.data.customerId),
@@ -67,9 +68,10 @@ export default function BookingDetailPage() {
   })();
 
   const previewPerDay = () => {
-    if (!booking || booking.isOutsourced) return null;
+    if (!booking) return null;
     if (!endForm.endDate || !booking.startDate) return null;
-    if (!endForm.endMeterReading) return null;
+    // owned vehicles require meter reading; outsourced can proceed without it (0 KM)
+    if (!booking.isOutsourced && !endForm.endMeterReading) return null;
 
     const start = new Date(typeof booking.startDate === 'string'
       ? booking.startDate
@@ -77,7 +79,9 @@ export default function BookingDetailPage() {
     const end = new Date(endForm.endDate);
     const days = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
 
-    const totalKm = Number(endForm.endMeterReading) - (booking.startMeterReading || 0);
+    const totalKm = endForm.endMeterReading
+      ? Number(endForm.endMeterReading) - (booking.startMeterReading || 0)
+      : 0;
     if (totalKm < 0) return null;
 
     const autoDefaultFreeKm = autoFreeKm ?? 150;
@@ -98,28 +102,31 @@ export default function BookingDetailPage() {
 
     const rateDiscount = Math.max(0, (defaultPricePerDay - pricePerDay) * days);
     const kmDiscount = Math.max(0, defaultExtraKmCharge - extraKmCharge);
-    const totalDiscount = rateDiscount + kmDiscount;
+    const additionalDiscount = Number(endForm.additionalDiscount) || 0;
+    const totalDiscount = rateDiscount + kmDiscount + additionalDiscount;
 
     const base = days * defaultPricePerDay + defaultExtraKmCharge;
-    const final = base - totalDiscount;
+    const final = Math.max(0, base - totalDiscount);
 
     return {
       days, totalKm, freeKm, autoDefaultFreeKm, extraKm, extraKmCharge,
-      pricePerDay, defaultPricePerDay, rateDiscount, kmDiscount, totalDiscount,
+      pricePerDay, defaultPricePerDay, rateDiscount, kmDiscount, additionalDiscount, totalDiscount,
       base, final,
     };
   };
 
-  const outsourcedPreview = () => {
-    if (!booking?.isOutsourced) return null;
-    const payment = Number(endForm.outsourcedPayment) || 0;
-    const comm = Number(endForm.commissionRate) || 10;
-    const commAmt = payment * comm / 100;
-    return { payment, comm, commAmt, net: payment - commAmt };
+  const calcDay = previewPerDay();
+
+  const commissionPreview = () => {
+    if (!booking?.isOutsourced || !calcDay) return null;
+    const tripPrice = calcDay.final;
+    const defaultCommission = tripPrice < 5000 ? 500 : Math.round(tripPrice * 0.10);
+    const isCustom = endForm.commissionAmount !== '';
+    const commission = isCustom ? Number(endForm.commissionAmount) : defaultCommission;
+    return { tripPrice, commission, defaultCommission, isCustom, netToOwner: Math.max(0, tripPrice - commission) };
   };
 
-  const calcDay = previewPerDay();
-  const outsourcedCalc = outsourcedPreview();
+  const commissionCalc = commissionPreview();
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleComplete = async (e: React.FormEvent) => {
@@ -127,10 +134,11 @@ export default function BookingDetailPage() {
     try {
       await completeBooking(id, {
         endDate: endForm.endDate,
-        endMeterReading: Number(endForm.endMeterReading),
-        outsourcedPayment: Number(endForm.outsourcedPayment),
-        commissionRate: Number(endForm.commissionRate),
+        endMeterReading: endForm.endMeterReading ? Number(endForm.endMeterReading) : undefined,
+        // send commissionAmount only if admin entered a custom override; else backend auto-calcs
+        commissionAmount: endForm.commissionAmount !== '' ? Number(endForm.commissionAmount) : undefined,
         freeKm: endForm.freeKm ? Number(endForm.freeKm) : undefined,
+        additionalDiscount: endForm.additionalDiscount ? Number(endForm.additionalDiscount) : 0,
       });
       toast.success('Booking completed!'); load();
     } catch (err: any) { toast.error(err?.response?.data?.error || 'Failed'); }
@@ -223,7 +231,12 @@ export default function BookingDetailPage() {
 
         {booking.isOutsourced && (
           <div style={{ marginTop: '0.75rem' }}>
-            <span className="badge badge-warning">Outsourced · {booking.commissionRate}% commission</span>
+            <span className="badge badge-warning">
+              Outsourced
+              {booking.commissionAmount != null
+                ? ` · Commission: LKR ${Number(booking.commissionAmount).toLocaleString()}`
+                : ' · Commission pending'}
+            </span>
           </div>
         )}
       </div>
@@ -241,71 +254,105 @@ export default function BookingDetailPage() {
                 <input type="date" className="form-input" value={endForm.endDate} onChange={e => setEndForm({ ...endForm, endDate: e.target.value })} required />
               </div>
 
-              {booking.isOutsourced ? (
-                <>
-                  <div className="form-group">
-                    <label className="form-label">Total Payment Received (LKR) *</label>
-                    <input type="number" className="form-input" placeholder="0" value={endForm.outsourcedPayment} onChange={e => setEndForm({ ...endForm, outsourcedPayment: e.target.value })} required />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Commission %</label>
-                    <input type="number" className="form-input" value={endForm.commissionRate} min={0} max={100} onChange={e => setEndForm({ ...endForm, commissionRate: e.target.value })} />
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="form-group">
-                    <label className="form-label">End Meter Reading (km) *</label>
-                    <input
-                      type="number" className="form-input"
-                      placeholder={`> ${booking.startMeterReading}`}
-                      value={endForm.endMeterReading}
-                      onChange={e => setEndForm({ ...endForm, endMeterReading: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">
-                      Free KM
-                      {autoFreeKm != null && (
-                        <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: '0.4rem', fontSize: '0.72rem' }}>
-                          (auto: {autoFreeKm} km)
-                        </span>
-                      )}
-                    </label>
-                    <input
-                      type="number" className="form-input" min={0}
-                      placeholder={autoFreeKm != null ? String(autoFreeKm) : 'Set end date first'}
-                      value={endForm.freeKm}
-                      onChange={e => setEndForm({ ...endForm, freeKm: e.target.value })}
-                    />
-                  </div>
-                </>
-              )}
+              <div className="form-group">
+                <label className="form-label">
+                  End Meter Reading (km)
+                  {booking.isOutsourced
+                    ? <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: '0.4rem', fontSize: '0.72rem' }}>(optional)</span>
+                    : ' *'}
+                </label>
+                <input
+                  type="number" className="form-input"
+                  placeholder={booking.startMeterReading ? `> ${booking.startMeterReading}` : '0'}
+                  value={endForm.endMeterReading}
+                  onChange={e => setEndForm({ ...endForm, endMeterReading: e.target.value })}
+                  required={!booking.isOutsourced}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">
+                  Free KM
+                  {autoFreeKm != null && (
+                    <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: '0.4rem', fontSize: '0.72rem' }}>
+                      (auto: {autoFreeKm} km)
+                    </span>
+                  )}
+                </label>
+                <input
+                  type="number" className="form-input" min={0}
+                  placeholder={autoFreeKm != null ? String(autoFreeKm) : 'Set end date first'}
+                  value={endForm.freeKm}
+                  onChange={e => setEndForm({ ...endForm, freeKm: e.target.value })}
+                />
+              </div>
             </div>
 
+            {/* Additional Discount */}
+            <div className="form-group">
+              <label className="form-label">Additional Discount (LKR)</label>
+              <input
+                type="number" className="form-input" min={0}
+                placeholder="0"
+                value={endForm.additionalDiscount}
+                onChange={e => setEndForm({ ...endForm, additionalDiscount: e.target.value })}
+              />
+            </div>
+
+            {/* Commission override (outsourced only) */}
+            {booking.isOutsourced && (
+              <div className="form-group">
+                <label className="form-label">
+                  Commission (LKR)
+                  {commissionCalc && (
+                    <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: '0.4rem', fontSize: '0.72rem' }}>
+                      auto: LKR {commissionCalc.defaultCommission.toLocaleString()}
+                      {commissionCalc.tripPrice >= 5000 ? ' (10%)' : ' (flat < 5,000)'}
+                    </span>
+                  )}
+                  {!commissionCalc && (
+                    <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: '0.4rem', fontSize: '0.72rem' }}>
+                      (auto-calculated from trip price)
+                    </span>
+                  )}
+                </label>
+                <input
+                  type="number" className="form-input" min={0}
+                  placeholder={commissionCalc ? String(commissionCalc.defaultCommission) : 'auto'}
+                  value={endForm.commissionAmount}
+                  onChange={e => setEndForm({ ...endForm, commissionAmount: e.target.value })}
+                />
+                {endForm.commissionAmount !== '' && (
+                  <button type="button" onClick={() => setEndForm(f => ({ ...f, commissionAmount: '' }))}
+                    style={{ fontSize: '0.72rem', color: 'var(--gold)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0', textAlign: 'left' }}>
+                    ↺ Reset to auto-calculated
+                  </button>
+                )}
+              </div>
+            )}
+
             {/* Live preview */}
-            {(calcDay || outsourcedCalc) && (
+            {calcDay && (
               <div style={{ background: '#0f0f0f', border: '1px solid rgba(201,162,39,0.3)', borderRadius: 12, padding: '1rem' }}>
                 <div style={{ fontSize: '0.72rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.6rem' }}>Price Preview</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', fontSize: '0.88rem' }}>
-                  {calcDay && (
-                    <>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ color: 'var(--text-muted)' }}>Duration</span>
-                        <span>{calcDay.days} day{calcDay.days > 1 ? 's' : ''}</span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ color: 'var(--text-muted)' }}>Daily Rate</span>
-                        <span>
-                          LKR {calcDay.pricePerDay.toLocaleString()}
-                          {calcDay.defaultPricePerDay !== calcDay.pricePerDay && (
-                            <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem', marginLeft: 6 }}>
-                              (default: LKR {calcDay.defaultPricePerDay.toLocaleString()})
-                            </span>
-                          )}
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Duration</span>
+                    <span>{calcDay.days} day{calcDay.days > 1 ? 's' : ''}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Daily Rate</span>
+                    <span>
+                      LKR {calcDay.pricePerDay.toLocaleString()}
+                      {calcDay.defaultPricePerDay !== calcDay.pricePerDay && (
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem', marginLeft: 6 }}>
+                          (default: LKR {calcDay.defaultPricePerDay.toLocaleString()})
                         </span>
-                      </div>
+                      )}
+                    </span>
+                  </div>
+                  {calcDay.totalKm > 0 && (
+                    <>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <span style={{ color: 'var(--text-muted)' }}>KM Driven</span>
                         <span>{calcDay.totalKm.toLocaleString()} km</span>
@@ -326,29 +373,45 @@ export default function BookingDetailPage() {
                           <span>LKR {calcDay.extraKmCharge.toLocaleString()}</span>
                         </div>
                       )}
-                      {calcDay.rateDiscount > 0 && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#22c55e' }}>
-                          <span>Rate Discount</span>
-                          <span>− LKR {calcDay.rateDiscount.toLocaleString()}</span>
-                        </div>
-                      )}
-                      {calcDay.kmDiscount > 0 && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#22c55e' }}>
-                          <span>Free KM Bonus</span>
-                          <span>− LKR {calcDay.kmDiscount.toLocaleString()}</span>
-                        </div>
-                      )}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: '0.45rem', marginTop: '0.2rem', fontWeight: 700, fontSize: '1rem', color: 'var(--gold)' }}>
-                        <span>Total</span>
-                        <span>LKR {calcDay.final.toLocaleString()}</span>
-                      </div>
                     </>
                   )}
-                  {outsourcedCalc && (
+                  {calcDay.rateDiscount > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#22c55e' }}>
+                      <span>Rate Discount</span>
+                      <span>− LKR {calcDay.rateDiscount.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {calcDay.kmDiscount > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#22c55e' }}>
+                      <span>Free KM Bonus</span>
+                      <span>− LKR {calcDay.kmDiscount.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {calcDay.additionalDiscount > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#22c55e' }}>
+                      <span>Additional Discount</span>
+                      <span>− LKR {calcDay.additionalDiscount.toLocaleString()}</span>
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: '0.45rem', marginTop: '0.2rem', fontWeight: 700, fontSize: '1rem', color: 'var(--gold)' }}>
+                    <span>Trip Total</span>
+                    <span>LKR {calcDay.final.toLocaleString()}</span>
+                  </div>
+                  {commissionCalc && (
                     <>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--text-muted)' }}>Payment Received</span><span>LKR {outsourcedCalc.payment.toLocaleString()}</span></div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', color: '#ef4444' }}><span>Commission ({outsourcedCalc.comm}%)</span><span>- LKR {outsourcedCalc.commAmt.toLocaleString()}</span></div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: '0.45rem', marginTop: '0.2rem', fontWeight: 700, fontSize: '1rem', color: 'var(--gold)' }}><span>Net Profit</span><span>LKR {outsourcedCalc.net.toLocaleString()}</span></div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: '#ef4444', marginTop: '0.35rem' }}>
+                        <span>
+                          Commission
+                          {commissionCalc.isCustom
+                            ? ' (custom)'
+                            : commissionCalc.tripPrice >= 5000 ? ' (10%)' : ' (flat < 5k)'}
+                        </span>
+                        <span>− LKR {commissionCalc.commission.toLocaleString()}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: '1rem', color: '#22c55e' }}>
+                        <span>Net to Owner</span>
+                        <span>LKR {commissionCalc.netToOwner.toLocaleString()}</span>
+                      </div>
                     </>
                   )}
                 </div>
@@ -383,12 +446,27 @@ export default function BookingDetailPage() {
                 </div>
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--text-muted)' }}>Base Amount</span><span>LKR {(booking.baseAmount || 0).toLocaleString()}</span></div>
-              {booking.discountAmount > 0 && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#22c55e' }}><span>Discount</span><span>- LKR {booking.discountAmount.toLocaleString()}</span></div>
+              {(booking.discountAmount - (booking.additionalDiscount || 0)) > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#22c55e' }}><span>Rate / KM Discount</span><span>- LKR {(booking.discountAmount - (booking.additionalDiscount || 0)).toLocaleString()}</span></div>
+              )}
+              {booking.additionalDiscount > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#22c55e' }}><span>Additional Discount</span><span>- LKR {booking.additionalDiscount.toLocaleString()}</span></div>
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: '0.45rem', marginTop: '0.2rem', fontWeight: 700, fontSize: '1.05rem', color: 'var(--gold)' }}>
-                <span>Total</span><span>LKR {(booking.finalAmount || 0).toLocaleString()}</span>
+                <span>Trip Total</span><span>LKR {(booking.finalAmount || 0).toLocaleString()}</span>
               </div>
+              {booking.isOutsourced && booking.commissionAmount != null && (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#ef4444', marginTop: '0.35rem' }}>
+                    <span>Commission</span>
+                    <span>− LKR {Number(booking.commissionAmount).toLocaleString()}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: '1rem', color: '#22c55e' }}>
+                    <span>Net to Owner</span>
+                    <span>LKR {Math.max(0, (booking.finalAmount || 0) - Number(booking.commissionAmount)).toLocaleString()}</span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 

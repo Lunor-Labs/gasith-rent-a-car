@@ -369,7 +369,7 @@ export default function BookingsPage() {
                 </div>
 
                 {/* Start odometer */}
-                {selectedVehicle && !selectedVehicle.isOutsourced && (
+                {selectedVehicle && (
                   <div className="form-group" style={{ marginBottom: '0.85rem' }}>
                     <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                       <Gauge size={11} strokeWidth={2} style={{ color: 'var(--text-muted)' }} /> Start Odometer (km)

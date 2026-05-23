@@ -68,15 +68,20 @@ router.post('/generate/:bookingId', authMiddleware, async (req, res) => {
       startMeterReading: booking.start_meter_reading,
       endMeterReading: booking.end_meter_reading,
       totalKm: booking.total_km,
+      freeKm: booking.free_km,
+      extraKm: booking.extra_km,
+      extraKmCharge: booking.extra_km_charge,
       pricePerKm: booking.price_per_km,
       pricePerDay: booking.price_per_day,
       billingMode: booking.billing_mode,
       baseAmount: booking.base_amount,
       discountAmount: booking.discount_amount,
+      additionalDiscount: booking.additional_discount,
       finalAmount: booking.final_amount,
       isOutsourced: booking.is_outsourced,
       outsourcedPayment: booking.outsourced_payment,
       commissionRate: booking.commission_rate,
+      notes: booking.notes,
     };
 
     const customerForPDF = {
