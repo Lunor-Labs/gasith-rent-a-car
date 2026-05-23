@@ -189,7 +189,7 @@ router.put('/:id/complete', authMiddleware, async (req, res) => {
   try {
     const {
       endMeterReading, endDate,
-      outsourcedPayment, commissionRate, freeKm, additionalDiscount,
+      commissionAmount, freeKm, additionalDiscount,
     } = req.body;
 
     const { data: booking, error: fetchError } = await supabase
@@ -208,66 +208,69 @@ router.put('/:id/complete', authMiddleware, async (req, res) => {
     let extraKmCharge = 0;
     let resolvedFreeKm: number | null = null;
     let computedDefaultFreeKm: number | null = null;
+    let resolvedCommissionAmount = 0;
 
+    // Same pricing logic for owned and outsourced vehicles
+    const { data: config } = await supabase
+      .from('pricing_config')
+      .select('first_day_free_km, subsequent_day_free_km')
+      .eq('id', 1)
+      .single();
+
+    const start = new Date(booking.start_date);
+    const end = endDate ? new Date(endDate) : new Date();
+    const days = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+
+    // Outsourced vehicles: meter reading is optional — 0 KM if not provided
+    const endReading = endMeterReading ? Number(endMeterReading) : null;
+    totalKm = endReading != null ? Math.max(0, endReading - (booking.start_meter_reading || 0)) : 0;
+
+    computedDefaultFreeKm = config
+      ? config.first_day_free_km + (days - 1) * config.subsequent_day_free_km
+      : (booking.free_km ?? 150);
+
+    // Per-booking rate overrides → used to recompute effective free KM for this booking
+    const bookingD1 = booking.booking_first_day_free_km;
+    const bookingSubseq = booking.booking_subsequent_day_free_km;
+    const autoFreeKm = (bookingD1 != null || bookingSubseq != null)
+      ? (bookingD1 ?? (config?.first_day_free_km ?? 150)) + (days - 1) * (bookingSubseq ?? (config?.subsequent_day_free_km ?? 100))
+      : computedDefaultFreeKm;
+
+    // Priority: completion-time manual override → auto-computed from booking rates + actual days
+    resolvedFreeKm = freeKm != null && freeKm !== ''
+      ? Number(freeKm)
+      : autoFreeKm;
+
+    const defaultPricePerDay = booking.default_price_per_day || booking.price_per_day || 0;
+    const pricePerDay = booking.price_per_day || 0;
+    const pricePerKm = booking.price_per_km || 0;
+
+    extraKm = Math.max(0, totalKm - resolvedFreeKm);
+    extraKmCharge = extraKm * pricePerKm;
+
+    const defaultExtraKm = Math.max(0, totalKm - computedDefaultFreeKm);
+    const defaultExtraKmCharge = defaultExtraKm * pricePerKm;
+    baseAmount = days * defaultPricePerDay + defaultExtraKmCharge;
+
+    const rateDiscount = (defaultPricePerDay - pricePerDay) * days;
+    const kmDiscount = defaultExtraKmCharge - extraKmCharge;
+    const extraDiscount = Number(additionalDiscount) || 0;
+    computedDiscount = Math.max(0, rateDiscount + kmDiscount) + extraDiscount;
+
+    finalAmount = Math.max(0, baseAmount - computedDiscount);
+
+    // Commission on top of computed trip price for outsourced vehicles
     if (booking.is_outsourced) {
-      const payment = Number(outsourcedPayment) || 0;
-      const commission = Number(commissionRate) || booking.commission_rate || 10;
-      finalAmount = payment - (payment * commission / 100);
-      baseAmount = payment;
-      computedDiscount = 0;
-    } else {
-      const { data: config } = await supabase
-        .from('pricing_config')
-        .select('first_day_free_km, subsequent_day_free_km')
-        .eq('id', 1)
-        .single();
-
-      const start = new Date(booking.start_date);
-      const end = endDate ? new Date(endDate) : new Date();
-      const days = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
-
-      const endReading = Number(endMeterReading);
-      totalKm = endReading - (booking.start_meter_reading || 0);
-
-      computedDefaultFreeKm = config
-        ? config.first_day_free_km + (days - 1) * config.subsequent_day_free_km
-        : (booking.free_km ?? 150);
-
-      // Per-booking rate overrides → used to recompute effective free KM for this booking
-      const bookingD1 = booking.booking_first_day_free_km;
-      const bookingSubseq = booking.booking_subsequent_day_free_km;
-      const autoFreeKm = (bookingD1 != null || bookingSubseq != null)
-        ? (bookingD1 ?? (config?.first_day_free_km ?? 150)) + (days - 1) * (bookingSubseq ?? (config?.subsequent_day_free_km ?? 100))
-        : computedDefaultFreeKm;
-
-      // Priority: completion-time manual override → auto-computed from booking rates + actual days
-      resolvedFreeKm = freeKm != null && freeKm !== ''
-        ? Number(freeKm)
-        : autoFreeKm;
-
-      const defaultPricePerDay = booking.default_price_per_day || booking.price_per_day || 0;
-      const pricePerDay = booking.price_per_day || 0;
-      const pricePerKm = booking.price_per_km || 0;
-
-      extraKm = Math.max(0, totalKm - resolvedFreeKm);
-      extraKmCharge = extraKm * pricePerKm;
-
-      const defaultExtraKm = Math.max(0, totalKm - computedDefaultFreeKm);
-      const defaultExtraKmCharge = defaultExtraKm * pricePerKm;
-      baseAmount = days * defaultPricePerDay + defaultExtraKmCharge;
-
-      const rateDiscount = (defaultPricePerDay - pricePerDay) * days;
-      const kmDiscount = defaultExtraKmCharge - extraKmCharge;
-      const extraDiscount = Number(additionalDiscount) || 0;
-      computedDiscount = Math.max(0, rateDiscount + kmDiscount) + extraDiscount;
-
-      finalAmount = Math.max(0, baseAmount - computedDiscount);
+      const defaultCommission = finalAmount < 5000 ? 500 : Math.round(finalAmount * 0.10);
+      resolvedCommissionAmount = commissionAmount != null && commissionAmount !== ''
+        ? Number(commissionAmount)
+        : defaultCommission;
     }
 
     const { error: updateError } = await supabase
       .from('bookings')
       .update({
-        end_meter_reading: endMeterReading ? Number(endMeterReading) : null,
+        end_meter_reading: endReading,
         end_date: endDate ? new Date(endDate).toISOString() : new Date().toISOString(),
         total_km: totalKm,
         base_amount: baseAmount,
@@ -276,12 +279,10 @@ router.put('/:id/complete', authMiddleware, async (req, res) => {
         final_amount: finalAmount,
         extra_km: extraKm,
         extra_km_charge: extraKmCharge,
-        ...(!booking.is_outsourced ? {
-          default_free_km: computedDefaultFreeKm,
-          free_km: resolvedFreeKm,
-        } : {}),
-        outsourced_payment: outsourcedPayment ? Number(outsourcedPayment) : booking.outsourced_payment,
-        commission_rate: Number(commissionRate) || booking.commission_rate,
+        default_free_km: computedDefaultFreeKm,
+        free_km: resolvedFreeKm,
+        outsourced_payment: booking.is_outsourced ? finalAmount : booking.outsourced_payment,
+        commission_amount: booking.is_outsourced ? resolvedCommissionAmount : null,
         status: 'completed',
       })
       .eq('id', req.params.id);
@@ -292,19 +293,17 @@ router.put('/:id/complete', authMiddleware, async (req, res) => {
       .from('vehicles')
       .update({
         is_available: true,
-        last_meter_reading: endMeterReading
-          ? Number(endMeterReading)
-          : booking.start_meter_reading,
+        last_meter_reading: endReading ?? booking.start_meter_reading,
       })
       .eq('id', booking.vehicle_id);
 
-    if (endMeterReading) {
+    if (endReading != null) {
       await supabase
         .from('meter_readings')
         .insert({
           vehicle_id: booking.vehicle_id,
           booking_id: req.params.id,
-          reading: Number(endMeterReading),
+          reading: endReading,
           type: 'end',
           recorded_by: (req as any).user?.id || 'admin',
         });
@@ -451,6 +450,7 @@ function mapBookingToResponse(b: any) {
     isOutsourced: b.is_outsourced,
     outsourcedPayment: b.outsourced_payment,
     commissionRate: b.commission_rate,
+    commissionAmount: b.commission_amount,
     status: b.status,
     invoiceUrl: b.invoice_url,
     notes: b.notes,
