@@ -3,7 +3,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { getVehicles, createVehicle, updateVehicle, deleteVehicle } from '@/lib/api';
 import toast from 'react-hot-toast';
-import { Plus, Pencil, Trash2, Star, Eye, EyeOff, Car, Camera } from 'lucide-react';
+import { Plus, Pencil, Trash2, Star, Eye, EyeOff, Car, Camera, ArrowUpDown } from 'lucide-react';
 
 function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
   return (
@@ -49,6 +49,11 @@ export default function VehiclesPage() {
   const [submitting, setSubmitting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  type Filter = 'all' | 'available' | 'on-rent' | 'featured';
+  type SortBy = 'default' | 'name' | 'price-asc' | 'price-desc';
+  const [filter, setFilter] = useState<Filter>('all');
+  const [sortBy, setSortBy] = useState<SortBy>('default');
+
   const searchParams = useSearchParams();
   const q = searchParams.get('q')?.toLowerCase() || '';
 
@@ -82,20 +87,95 @@ export default function VehiclesPage() {
     try { await updateVehicle(v.id, fd); load(); } catch { toast.error('Update failed'); }
   };
 
-  const filtered = q
-    ? vehicles.filter(v => v.name.toLowerCase().includes(q) || v.plate.toLowerCase().includes(q) || v.type.toLowerCase().includes(q))
-    : vehicles;
+  // counts for filter tabs
+  const counts = {
+    all:       vehicles.length,
+    available: vehicles.filter(v => v.isAvailable).length,
+    'on-rent': vehicles.filter(v => !v.isAvailable).length,
+    featured:  vehicles.filter(v => v.showOnLanding).length,
+  };
+
+  // filter → sort
+  let filtered = vehicles.filter(v =>
+    !q || v.name.toLowerCase().includes(q) || v.plate.toLowerCase().includes(q) || v.type.toLowerCase().includes(q)
+  );
+  if (filter === 'available') filtered = filtered.filter(v => v.isAvailable);
+  else if (filter === 'on-rent') filtered = filtered.filter(v => !v.isAvailable);
+  else if (filter === 'featured') filtered = filtered.filter(v => v.showOnLanding);
+  if (sortBy === 'name')       filtered = [...filtered].sort((a, b) => a.name.localeCompare(b.name));
+  else if (sortBy === 'price-asc')  filtered = [...filtered].sort((a, b) => a.pricePerDay - b.pricePerDay);
+  else if (sortBy === 'price-desc') filtered = [...filtered].sort((a, b) => b.pricePerDay - a.pricePerDay);
+
+  const FILTERS: { key: Filter; label: string }[] = [
+    { key: 'all',       label: 'All'       },
+    { key: 'available', label: 'Available' },
+    { key: 'on-rent',   label: 'On Rent'   },
+    { key: 'featured',  label: 'Featured'  },
+  ];
 
   return (
-    <div className="animate-fade">
-      <div className="page-header">
+    <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+
+      {/* ── Header ── */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <div>
+          <div className="gold-line" />
           <h1 className="page-title">Vehicles</h1>
-          <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: 4 }}>{vehicles.length} in fleet</p>
+          <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 4 }}>
+            {vehicles.length} total
+            {' · '}
+            <span style={{ color: 'var(--success)' }}>{counts.available} available</span>
+            {' · '}
+            <span style={{ color: 'var(--danger)' }}>{counts['on-rent']} on rent</span>
+          </p>
         </div>
-        <button onClick={openCreate} className="btn btn-primary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+        <button onClick={openCreate} className="btn btn-primary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', alignSelf: 'flex-start', marginTop: 6 }}>
           <Plus size={14} strokeWidth={2} /> Add Vehicle
         </button>
+      </div>
+
+      {/* ── Filter tabs + Sort ── */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any }}>
+          <div className="tabs" style={{ whiteSpace: 'nowrap' }}>
+            {FILTERS.map(f => (
+              <button
+                key={f.key}
+                className={`tab ${filter === f.key ? 'active' : ''}`}
+                onClick={() => setFilter(f.key)}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+              >
+                {f.label}
+                <span style={{
+                  fontSize: '0.6rem', fontWeight: 700, minWidth: 16, textAlign: 'center',
+                  padding: '0.1rem 0.35rem', borderRadius: 99,
+                  background: filter === f.key ? 'var(--bg-elevated)' : 'var(--bg-secondary)',
+                  color: filter === f.key ? 'var(--text-primary)' : 'var(--text-muted)',
+                }}>
+                  {counts[f.key]}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+          <ArrowUpDown size={13} strokeWidth={1.5} style={{ color: 'var(--text-muted)' }} />
+          <select
+            value={sortBy}
+            onChange={e => setSortBy(e.target.value as SortBy)}
+            style={{
+              background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)',
+              borderRadius: 8, color: 'var(--text-secondary)', fontSize: '0.78rem',
+              padding: '0.32rem 0.65rem', cursor: 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            <option value="default">Default</option>
+            <option value="name">Name A–Z</option>
+            <option value="price-desc">Price: High first</option>
+            <option value="price-asc">Price: Low first</option>
+          </select>
+        </div>
       </div>
 
       {loading ? (
@@ -105,92 +185,114 @@ export default function VehiclesPage() {
       ) : filtered.length === 0 ? (
         <div className="empty-state">
           <Car size={40} strokeWidth={1} style={{ margin: '0 auto 0.75rem', display: 'block', opacity: 0.25 }} />
-          <p>{q ? `No vehicles matching "${q}"` : 'No vehicles yet'}</p>
+          <p>{q ? `No vehicles matching "${q}"` : `No ${filter === 'all' ? '' : filter + ' '}vehicles`}</p>
         </div>
       ) : (
         <div className="grid-3" style={{ gap: '1rem' }}>
-          {filtered.map(v => {
-            const stats = [
-              { label: 'per km',   value: `LKR ${v.pricePerKm?.toLocaleString()}` },
-              { label: 'per day',  value: `LKR ${v.pricePerDay?.toLocaleString()}` },
-              { label: 'odometer', value: `${v.lastMeterReading?.toLocaleString()} km`, gold: true },
-              ...(v.isOutsourced ? [{ label: 'commission', value: `${v.commissionRate}%`, gold: false }] : []),
-            ];
-            return (
-              <div key={v.id} className="vehicle-card">
+          {filtered.map(v => (
+            <div key={v.id} className="vehicle-card">
 
-                {/* ── Image / placeholder with overlay ── */}
-                <div style={{ position: 'relative' }}>
-                  {v.imageUrl
-                    ? <img src={v.imageUrl} alt={v.name} className="vehicle-card-img" />
-                    : <div className="vehicle-card-placeholder">
-                        <Car size={56} strokeWidth={0.75} style={{ color: 'var(--gold)', opacity: 0.12 }} />
-                      </div>
-                  }
-                  {/* gradient */}
-                  <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0.1) 55%, transparent 100%)', pointerEvents: 'none' }} />
-
-                  {/* top-left: type + outsourced badges */}
-                  <div style={{ position: 'absolute', top: '0.65rem', left: '0.65rem', display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: '0.62rem', fontWeight: 700, padding: '0.18rem 0.5rem', borderRadius: 99, background: 'rgba(0,0,0,0.55)', color: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(6px)', border: '1px solid rgba(255,255,255,0.1)' }}>
-                      {v.type}
-                    </span>
-                    {v.isOutsourced && (
-                      <span style={{ fontSize: '0.62rem', fontWeight: 700, padding: '0.18rem 0.5rem', borderRadius: 99, background: 'rgba(245,158,11,0.75)', color: '#000', backdropFilter: 'blur(6px)' }}>
-                        Outsourced
-                      </span>
-                    )}
-                  </div>
-
-                  {/* top-right: availability */}
-                  <div style={{ position: 'absolute', top: '0.65rem', right: '0.65rem' }}>
-                    <span className={`badge ${v.isAvailable ? 'badge-success' : 'badge-danger'}`}>
-                      {v.isAvailable ? 'Available' : 'Rented'}
-                    </span>
-                  </div>
-
-                  {/* bottom: name + plate */}
-                  <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '0.7rem 0.85rem 0.75rem', pointerEvents: 'none' }}>
-                    <div style={{ fontWeight: 800, fontSize: '1.05rem', color: '#fff', lineHeight: 1.2, textShadow: '0 1px 4px rgba(0,0,0,0.6)' }}>{v.name}</div>
-                    <div style={{ fontSize: '0.72rem', color: 'rgba(212,168,83,0.92)', marginTop: '0.2rem', fontWeight: 600, letterSpacing: '0.04em' }}>{v.plate}</div>
-                  </div>
-                </div>
-
-                {/* ── Stats strip ── */}
-                <div style={{ display: 'grid', gridTemplateColumns: `repeat(${stats.length}, 1fr)`, borderBottom: '1px solid var(--border-subtle)' }}>
-                  {stats.map(({ label, value, gold }, i) => (
-                    <div key={label} style={{ padding: '0.6rem 0.5rem', textAlign: 'center', borderRight: i < stats.length - 1 ? '1px solid var(--border-subtle)' : 'none' }}>
-                      <div style={{ fontWeight: 700, fontSize: '0.8rem', color: gold ? 'var(--gold)' : 'var(--text-primary)', marginBottom: '0.15rem', whiteSpace: 'nowrap' }}>{value}</div>
-                      <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</div>
+              {/* ── Image with overlays ── */}
+              <div style={{ position: 'relative' }}>
+                {v.imageUrl
+                  ? <img src={v.imageUrl} alt={v.name} style={{ width: '100%', height: 220, objectFit: 'cover', display: 'block' }} />
+                  : <div className="vehicle-card-placeholder" style={{ height: 220 }}>
+                      <Car size={56} strokeWidth={0.75} style={{ color: 'var(--gold)', opacity: 0.12 }} />
                     </div>
-                  ))}
+                }
+                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.08) 55%, transparent 100%)', pointerEvents: 'none' }} />
+
+                {/* top-left: type */}
+                <div style={{ position: 'absolute', top: '0.65rem', left: '0.65rem', display: 'flex', gap: '0.3rem' }}>
+                  <span style={{ fontSize: '0.62rem', fontWeight: 700, padding: '0.2rem 0.55rem', borderRadius: 99, background: 'rgba(0,0,0,0.55)', color: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(6px)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                    {v.type}
+                  </span>
+                  {v.isOutsourced && (
+                    <span style={{ fontSize: '0.62rem', fontWeight: 700, padding: '0.2rem 0.55rem', borderRadius: 99, background: 'rgba(245,158,11,0.8)', color: '#000', backdropFilter: 'blur(6px)' }}>
+                      3rd Party
+                    </span>
+                  )}
                 </div>
 
-                {/* ── Action bar ── */}
-                <div style={{ padding: '0.55rem 0.65rem', display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
-                  <button
-                    onClick={() => handleToggle(v, 'showOnLanding')}
-                    title={v.showOnLanding ? 'Hide from landing page' : 'Show on landing page'}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.25rem 0.55rem', borderRadius: 99, fontSize: '0.63rem', fontWeight: 700, border: 'none', cursor: 'pointer', background: v.showOnLanding ? 'rgba(212,168,83,0.15)' : 'var(--bg-elevated)', color: v.showOnLanding ? 'var(--gold)' : 'var(--text-muted)', transition: 'all 0.15s' }}
-                  >
-                    <Star size={10} strokeWidth={2} fill={v.showOnLanding ? 'currentColor' : 'none'} />
-                    {v.showOnLanding ? 'Featured' : 'Hidden'}
-                  </button>
-                  <div style={{ flex: 1 }} />
-                  <button onClick={() => handleToggle(v, 'isAvailable')} className="btn btn-ghost btn-sm" title={v.isAvailable ? 'Mark as rented' : 'Mark as available'} style={{ padding: '0.32rem 0.55rem' }}>
-                    {v.isAvailable ? <EyeOff size={13} strokeWidth={1.5} /> : <Eye size={13} strokeWidth={1.5} />}
-                  </button>
-                  <button onClick={() => openEdit(v)} className="btn btn-secondary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '0.28rem', padding: '0.32rem 0.65rem' }}>
-                    <Pencil size={12} strokeWidth={1.5} /> Edit
-                  </button>
-                  <button onClick={() => handleDelete(v.id)} className="btn btn-danger btn-sm" style={{ padding: '0.32rem 0.55rem' }}>
-                    <Trash2 size={13} strokeWidth={1.5} />
-                  </button>
+                {/* top-right: availability */}
+                <div style={{ position: 'absolute', top: '0.65rem', right: '0.65rem' }}>
+                  <span className={`badge ${v.isAvailable ? 'badge-success' : 'badge-danger'}`}>
+                    {v.isAvailable ? 'Available' : 'On Rent'}
+                  </span>
                 </div>
 
+                {/* bottom overlay: name + plate */}
+                <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '0.75rem 0.9rem 0.8rem', pointerEvents: 'none' }}>
+                  <div style={{ fontWeight: 800, fontSize: '1.05rem', color: '#fff', lineHeight: 1.2, textShadow: '0 1px 6px rgba(0,0,0,0.7)' }}>{v.name}</div>
+                  <div style={{ fontSize: '0.7rem', color: 'rgba(212,168,83,0.9)', marginTop: '0.2rem', fontWeight: 600, letterSpacing: '0.05em' }}>{v.plate}</div>
+                </div>
               </div>
-            );
-          })}
+
+              {/* ── Card body ── */}
+              <div style={{ padding: '0.85rem 0.9rem 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                {/* Price */}
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 3 }}>
+                    <span style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--gold)', lineHeight: 1, letterSpacing: '-0.02em' }}>
+                      {(v.pricePerDay || 0).toLocaleString()}
+                    </span>
+                    <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 500 }}>LKR / day</span>
+                  </div>
+                  {v.pricePerKm > 0 && (
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                      LKR {v.pricePerKm.toLocaleString()} / km
+                    </div>
+                  )}
+                </div>
+                {/* Odometer */}
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    {(v.lastMeterReading || 0).toLocaleString()} km
+                  </div>
+                  <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>odometer</div>
+                </div>
+              </div>
+
+              {/* ── Action bar ── */}
+              <div style={{ padding: '0.65rem 0.75rem 0.7rem', display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
+                <button
+                  onClick={() => handleToggle(v, 'showOnLanding')}
+                  title={v.showOnLanding ? 'Remove from website' : 'Show on website'}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+                    padding: '0.28rem 0.6rem', borderRadius: 99, fontSize: '0.63rem', fontWeight: 700,
+                    border: 'none', cursor: 'pointer',
+                    background: v.showOnLanding ? 'rgba(212,168,83,0.15)' : 'var(--bg-elevated)',
+                    color: v.showOnLanding ? 'var(--gold)' : 'var(--text-muted)',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  <Star size={10} strokeWidth={2} fill={v.showOnLanding ? 'currentColor' : 'none'} />
+                  {v.showOnLanding ? 'Featured' : 'Feature'}
+                </button>
+                <div style={{ flex: 1 }} />
+                <button
+                  onClick={() => handleToggle(v, 'isAvailable')}
+                  className="btn btn-ghost btn-sm"
+                  title={v.isAvailable ? 'Mark as on rent' : 'Mark as available'}
+                  style={{ padding: '0.3rem 0.55rem' }}
+                >
+                  {v.isAvailable ? <EyeOff size={13} strokeWidth={1.5} /> : <Eye size={13} strokeWidth={1.5} />}
+                </button>
+                <button
+                  onClick={() => openEdit(v)}
+                  className="btn btn-secondary btn-sm"
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.28rem', padding: '0.3rem 0.65rem' }}
+                >
+                  <Pencil size={12} strokeWidth={1.5} /> Edit
+                </button>
+                <button onClick={() => handleDelete(v.id)} className="btn btn-danger btn-sm" style={{ padding: '0.3rem 0.55rem' }}>
+                  <Trash2 size={13} strokeWidth={1.5} />
+                </button>
+              </div>
+
+            </div>
+          ))}
         </div>
       )}
 
