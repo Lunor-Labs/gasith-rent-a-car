@@ -267,7 +267,7 @@ router.put('/:id/complete', authMiddleware, async (req, res) => {
     const { error: updateError } = await supabase
       .from('bookings')
       .update({
-        end_meter_reading: booking.is_outsourced ? null : Number(endMeterReading),
+        end_meter_reading: endMeterReading ? Number(endMeterReading) : null,
         end_date: endDate ? new Date(endDate).toISOString() : new Date().toISOString(),
         total_km: totalKm,
         base_amount: baseAmount,
@@ -292,13 +292,13 @@ router.put('/:id/complete', authMiddleware, async (req, res) => {
       .from('vehicles')
       .update({
         is_available: true,
-        last_meter_reading: booking.is_outsourced
-          ? booking.start_meter_reading
-          : Number(endMeterReading),
+        last_meter_reading: endMeterReading
+          ? Number(endMeterReading)
+          : booking.start_meter_reading,
       })
       .eq('id', booking.vehicle_id);
 
-    if (!booking.is_outsourced && endMeterReading) {
+    if (endMeterReading) {
       await supabase
         .from('meter_readings')
         .insert({

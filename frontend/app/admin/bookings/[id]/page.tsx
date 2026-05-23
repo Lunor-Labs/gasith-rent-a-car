@@ -254,6 +254,15 @@ export default function BookingDetailPage() {
                     <label className="form-label">Commission %</label>
                     <input type="number" className="form-input" value={endForm.commissionRate} min={0} max={100} onChange={e => setEndForm({ ...endForm, commissionRate: e.target.value })} />
                   </div>
+                  <div className="form-group">
+                    <label className="form-label">End Meter Reading (km) <span style={{ fontWeight: 400, color: 'var(--text-muted)', fontSize: '0.72rem' }}>(optional)</span></label>
+                    <input
+                      type="number" className="form-input"
+                      placeholder={booking.startMeterReading ? `> ${booking.startMeterReading}` : '0'}
+                      value={endForm.endMeterReading}
+                      onChange={e => setEndForm({ ...endForm, endMeterReading: e.target.value })}
+                    />
+                  </div>
                 </>
               ) : (
                 <>
