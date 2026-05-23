@@ -5,13 +5,15 @@ import {
 } from 'recharts';
 import {
   getReportFinancial, getReportCommissions, getReportBookings, getReportVehicles,
+  toggleCommissionPaid,
 } from '@/lib/api';
 import toast from 'react-hot-toast';
+import { Check, Clock } from 'lucide-react';
 
 type Tab = 'financial' | 'commissions' | 'bookings' | 'vehicles';
 
 const fmtMoney = (n: number) => `LKR ${(n || 0).toLocaleString()}`;
-const fmtDate = (ts: string | null) => {
+const fmtDate  = (ts: string | null) => {
   if (!ts) return '—';
   return new Date(ts).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 };
@@ -43,48 +45,62 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export default function ReportsPage() {
-  const [tab, setTab] = useState<Tab>('financial');
+  const [tab, setTab]     = useState<Tab>('financial');
   const [loading, setLoading] = useState(false);
 
-  const [financial, setFinancial] = useState<any[]>([]);
+  const [financial,   setFinancial]   = useState<any[]>([]);
   const [commissions, setCommissions] = useState<any[]>([]);
-  const [bookings, setBookings] = useState<any[]>([]);
-  const [vehicles, setVehicles] = useState<any[]>([]);
+  const [bookings,    setBookings]    = useState<any[]>([]);
+  const [vehicles,    setVehicles]    = useState<any[]>([]);
 
+  // Shared date range
   const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  const [dateTo,   setDateTo]   = useState('');
+
+  const dateParams = () => ({
+    from: dateFrom || undefined,
+    to:   dateTo   || undefined,
+  });
 
   const load = async (t: Tab) => {
     setLoading(true);
     try {
-      if (t === 'financial' && !financial.length) {
-        const r = await getReportFinancial();
-        setFinancial(r.data);
-      } else if (t === 'commissions' && !commissions.length) {
-        const r = await getReportCommissions();
-        setCommissions(r.data);
-      } else if (t === 'bookings') {
-        const r = await getReportBookings(dateFrom || dateTo ? { from: dateFrom || undefined, to: dateTo || undefined } : undefined);
-        setBookings(r.data);
-      } else if (t === 'vehicles' && !vehicles.length) {
-        const r = await getReportVehicles();
-        setVehicles(r.data);
-      }
+      const p = dateParams();
+      if (t === 'financial')   { const r = await getReportFinancial(p);   setFinancial(r.data);   }
+      if (t === 'commissions') { const r = await getReportCommissions(p);  setCommissions(r.data); }
+      if (t === 'bookings')    { const r = await getReportBookings(p);     setBookings(r.data);    }
+      if (t === 'vehicles')    { const r = await getReportVehicles(p);     setVehicles(r.data);    }
     } catch { toast.error('Failed to load report'); }
     finally { setLoading(false); }
   };
 
   useEffect(() => { load(tab); }, [tab]);
 
-  const handleBookingFilter = async () => {
+  const handleApply = () => load(tab);
+  const handleClear = () => {
+    setDateFrom(''); setDateTo('');
+    // load with empty params after state clears
     setLoading(true);
-    try {
-      const r = await getReportBookings({ from: dateFrom || undefined, to: dateTo || undefined });
-      setBookings(r.data);
-    } catch { toast.error('Failed to load'); }
-    finally { setLoading(false); }
+    const p = { from: undefined, to: undefined };
+    const loaders: Record<Tab, () => Promise<any>> = {
+      financial:   () => getReportFinancial(p).then(r => setFinancial(r.data)),
+      commissions: () => getReportCommissions(p).then(r => setCommissions(r.data)),
+      bookings:    () => getReportBookings(p).then(r => setBookings(r.data)),
+      vehicles:    () => getReportVehicles(p).then(r => setVehicles(r.data)),
+    };
+    loaders[tab]().catch(() => toast.error('Failed')).finally(() => setLoading(false));
   };
 
+  const handleTogglePaid = async (bookingId: string) => {
+    try {
+      const r = await toggleCommissionPaid(bookingId);
+      setCommissions(prev => prev.map(c =>
+        c.id === bookingId ? { ...c, commissionPaid: r.data.commissionPaid } : c
+      ));
+    } catch { toast.error('Failed to update'); }
+  };
+
+  // ── Derived summaries ────────────────────────────────────────────────────
   const totalOwned       = financial.reduce((s, m) => s + m.ownedRevenue, 0);
   const totalCommission  = financial.reduce((s, m) => s + m.commissionIncome, 0);
   const totalIncome      = totalOwned + totalCommission;
@@ -92,47 +108,74 @@ export default function ReportsPage() {
 
   const chartData = [...financial].reverse().slice(-6).map(m => ({
     month: fmtMonth(m.month),
-    'Owned Revenue': m.ownedRevenue,
+    'Owned Revenue':    m.ownedRevenue,
     'Commission Income': m.commissionIncome,
   }));
 
   const totalCommissionEarned = commissions.reduce((s, c) => s + (c.commissionAmount || 0), 0);
-  const totalTripValue        = commissions.reduce((s, c) => s + (c.tripPrice || 0), 0);
+  const totalCommissionPaid   = commissions.filter(c => c.commissionPaid).reduce((s, c) => s + (c.commissionAmount || 0), 0);
+  const totalCommissionPending = totalCommissionEarned - totalCommissionPaid;
   const totalNetToOwner       = commissions.reduce((s, c) => s + (c.netToOwner || 0), 0);
 
   const totalAdminIncome = bookings.reduce((s, b) => s + (b.adminIncome || 0), 0);
-
-  const vehiclesSorted = [...vehicles].sort((a, b) => b.adminIncome - a.adminIncome);
+  const vehiclesSorted   = [...vehicles].sort((a, b) => b.adminIncome - a.adminIncome);
 
   const TABS: { key: Tab; label: string }[] = [
-    { key: 'financial',   label: 'Financial' },
+    { key: 'financial',   label: 'Financial'  },
     { key: 'commissions', label: 'Commission' },
-    { key: 'bookings',    label: 'Bookings' },
-    { key: 'vehicles',    label: 'Vehicles' },
+    { key: 'bookings',    label: 'Bookings'   },
+    { key: 'vehicles',    label: 'Vehicles'   },
   ];
 
+  // ── Date filter bar (shared) ─────────────────────────────────────────────
+  const DateFilter = () => (
+    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
+      <div className="form-group" style={{ margin: 0 }}>
+        <label className="form-label" style={{ fontSize: '0.68rem' }}>From</label>
+        <input type="date" className="form-input" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+          style={{ padding: '0.32rem 0.6rem', fontSize: '0.8rem', width: 148 }} />
+      </div>
+      <div className="form-group" style={{ margin: 0 }}>
+        <label className="form-label" style={{ fontSize: '0.68rem' }}>To</label>
+        <input type="date" className="form-input" value={dateTo} onChange={e => setDateTo(e.target.value)}
+          style={{ padding: '0.32rem 0.6rem', fontSize: '0.8rem', width: 148 }} />
+      </div>
+      <button className="btn btn-primary btn-sm" onClick={handleApply}>Apply</button>
+      {(dateFrom || dateTo) && (
+        <button className="btn btn-secondary btn-sm" onClick={handleClear}>Clear</button>
+      )}
+    </div>
+  );
+
   return (
-    <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
+    <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
       {/* Header */}
       <div>
         <div className="gold-line" />
         <h1 className="page-title">Reports</h1>
       </div>
-//added this to check workflow issues
-      {/* Tabs — scrollable on mobile */}
-      <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any, paddingBottom: 2 }}>
-        <div className="tabs" style={{ whiteSpace: 'nowrap' }}>
-          {TABS.map(t => (
-            <button
-              key={t.key}
-              className={`tab ${tab === t.key ? 'active' : ''}`}
-              onClick={() => setTab(t.key)}
-            >
-              {t.label}
-            </button>
-          ))}
+
+      {/* Tabs + date filter */}
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any }}>
+          <div className="tabs" style={{ whiteSpace: 'nowrap' }}>
+            {TABS.map(t => (
+              <button key={t.key} className={`tab ${tab === t.key ? 'active' : ''}`} onClick={() => setTab(t.key)}>
+                {t.label}
+              </button>
+            ))}
+          </div>
         </div>
+        <DateFilter />
       </div>
+
+      {/* Active filter indicator */}
+      {(dateFrom || dateTo) && (
+        <div style={{ fontSize: '0.75rem', color: 'var(--gold)', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--gold)', display: 'inline-block' }} />
+          Filtered: {dateFrom ? fmtDate(dateFrom) : 'start'} → {dateTo ? fmtDate(dateTo) : 'now'}
+        </div>
+      )}
 
       {loading && (
         <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>
@@ -145,10 +188,10 @@ export default function ReportsPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
             {[
-              { label: 'Total Admin Income',     value: fmtMoney(totalIncome),      sub: 'all time' },
-              { label: 'Owned Vehicle Revenue',  value: fmtMoney(totalOwned),       sub: 'all time' },
-              { label: 'Commission Income',      value: fmtMoney(totalCommission),  sub: '3rd party' },
-              { label: 'Total Bookings',         value: String(totalBookingsAll),   sub: 'completed' },
+              { label: 'Total Admin Income',    value: fmtMoney(totalIncome),     sub: dateFrom || dateTo ? 'filtered period' : 'all time' },
+              { label: 'Owned Vehicle Revenue', value: fmtMoney(totalOwned),      sub: 'all time' },
+              { label: 'Commission Income',     value: fmtMoney(totalCommission), sub: '3rd party' },
+              { label: 'Total Bookings',        value: String(totalBookingsAll),  sub: 'completed' },
             ].map(k => (
               <div key={k.label} className="card kpi">
                 <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{k.label}</div>
@@ -160,7 +203,9 @@ export default function ReportsPage() {
 
           {chartData.length > 0 && (
             <div className="card" style={{ padding: '1.25rem' }}>
-              <div style={{ fontWeight: 600, fontSize: '0.88rem', marginBottom: '1rem' }}>Monthly Breakdown (last 6 months)</div>
+              <div style={{ fontWeight: 600, fontSize: '0.88rem', marginBottom: '1rem' }}>
+                Monthly Breakdown {dateFrom || dateTo ? '(filtered)' : '(last 6 months)'}
+              </div>
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={chartData} barCategoryGap="30%" barGap={4}>
                   <XAxis dataKey="month" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
@@ -197,7 +242,7 @@ export default function ReportsPage() {
                   </tr>
                 ))}
                 {financial.length === 0 && (
-                  <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>No completed bookings yet</td></tr>
+                  <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>No completed bookings in this period</td></tr>
                 )}
               </tbody>
             </table>
@@ -218,7 +263,7 @@ export default function ReportsPage() {
                 </div>
               </div>
             ))}
-            {financial.length === 0 && <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '1.5rem' }}>No completed bookings yet</div>}
+            {financial.length === 0 && <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '1.5rem' }}>No completed bookings in this period</div>}
           </div>
         </div>
       )}
@@ -228,10 +273,10 @@ export default function ReportsPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
             {[
-              { label: 'Commission Earned',       value: fmtMoney(totalCommissionEarned), color: 'var(--gold)'     },
-              { label: 'Total Trip Value',         value: fmtMoney(totalTripValue),        color: 'var(--text-primary)' },
-              { label: 'Paid to 3rd Party',        value: fmtMoney(totalNetToOwner),       color: '#ef4444'         },
-              { label: 'Outsourced Bookings',      value: String(commissions.length),      color: 'var(--text-primary)' },
+              { label: 'Commission Earned',   value: fmtMoney(totalCommissionEarned),  color: 'var(--gold)'          },
+              { label: 'Settled',             value: fmtMoney(totalCommissionPaid),    color: 'var(--success)'       },
+              { label: 'Pending Settlement',  value: fmtMoney(totalCommissionPending), color: 'var(--warning)'       },
+              { label: 'Paid to 3rd Party',   value: fmtMoney(totalNetToOwner),        color: '#ef4444'              },
             ].map(k => (
               <div key={k.label} className="card kpi">
                 <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{k.label}</div>
@@ -242,16 +287,16 @@ export default function ReportsPage() {
 
           {/* Desktop table */}
           <div className="card responsive-hide-mobile" style={{ overflow: 'auto' }}>
-            <table className="table" style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
+            <table className="table" style={{ width: '100%', borderCollapse: 'collapse', minWidth: 780 }}>
               <thead>
                 <tr>
                   <th>Date</th>
                   <th>Customer</th>
                   <th>Vehicle</th>
-                  <th style={{ textAlign: 'right' }}>KM</th>
                   <th style={{ textAlign: 'right' }}>Trip Price</th>
                   <th style={{ textAlign: 'right' }}>Commission</th>
                   <th style={{ textAlign: 'right' }}>Net to Owner</th>
+                  <th style={{ textAlign: 'center' }}>Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -266,14 +311,29 @@ export default function ReportsPage() {
                       <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>{c.vehicleName}</div>
                       {c.vehiclePlate && <span className="plate-tag" style={{ fontSize: '0.72rem' }}>{c.vehiclePlate}</span>}
                     </td>
-                    <td style={{ textAlign: 'right', color: 'var(--text-muted)' }}>{(c.totalKm || 0).toLocaleString()} km</td>
                     <td style={{ textAlign: 'right' }}>{fmtMoney(c.tripPrice)}</td>
                     <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--gold)' }}>{fmtMoney(c.commissionAmount)}</td>
                     <td style={{ textAlign: 'right', color: '#ef4444' }}>{fmtMoney(c.netToOwner)}</td>
+                    <td style={{ textAlign: 'center' }}>
+                      <button
+                        onClick={() => handleTogglePaid(c.id)}
+                        style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 4,
+                          padding: '0.28rem 0.7rem', borderRadius: 99, border: 'none', cursor: 'pointer',
+                          fontSize: '0.72rem', fontWeight: 700, transition: 'all 0.15s',
+                          background: c.commissionPaid ? 'rgba(34,197,94,0.15)' : 'rgba(245,158,11,0.12)',
+                          color: c.commissionPaid ? '#22c55e' : '#f59e0b',
+                        }}
+                      >
+                        {c.commissionPaid
+                          ? <><Check size={11} strokeWidth={2.5} /> Settled</>
+                          : <><Clock size={11} strokeWidth={2} /> Pending</>}
+                      </button>
+                    </td>
                   </tr>
                 ))}
                 {commissions.length === 0 && (
-                  <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>No outsourced bookings completed yet</td></tr>
+                  <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>No outsourced bookings in this period</td></tr>
                 )}
               </tbody>
             </table>
@@ -288,7 +348,7 @@ export default function ReportsPage() {
                     <div style={{ fontWeight: 700, fontSize: '0.92rem' }}>{c.customerName}</div>
                     {c.customerPhone && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{c.customerPhone}</div>}
                   </div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'right' }}>{fmtDate(c.endDate)}</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{fmtDate(c.endDate)}</div>
                 </div>
                 <div>
                   <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{c.vehicleName}</div>
@@ -299,9 +359,25 @@ export default function ReportsPage() {
                   <StatLine label="Commission" value={fmtMoney(c.commissionAmount)} color="var(--gold)" />
                   <StatLine label="Net to Owner" value={fmtMoney(c.netToOwner)} color="#ef4444" />
                 </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <button
+                    onClick={() => handleTogglePaid(c.id)}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 4,
+                      padding: '0.35rem 0.85rem', borderRadius: 99, border: 'none', cursor: 'pointer',
+                      fontSize: '0.78rem', fontWeight: 700, transition: 'all 0.15s',
+                      background: c.commissionPaid ? 'rgba(34,197,94,0.15)' : 'rgba(245,158,11,0.12)',
+                      color: c.commissionPaid ? '#22c55e' : '#f59e0b',
+                    }}
+                  >
+                    {c.commissionPaid
+                      ? <><Check size={12} strokeWidth={2.5} /> Settled</>
+                      : <><Clock size={12} strokeWidth={2} /> Mark as Settled</>}
+                  </button>
+                </div>
               </div>
             ))}
-            {commissions.length === 0 && <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '1.5rem' }}>No outsourced bookings completed yet</div>}
+            {commissions.length === 0 && <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '1.5rem' }}>No outsourced bookings in this period</div>}
           </div>
         </div>
       )}
@@ -309,26 +385,6 @@ export default function ReportsPage() {
       {/* ── Booking History ────────────────────────────────────────────────── */}
       {tab === 'bookings' && !loading && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {/* Date filter */}
-          <div className="card" style={{ padding: '1rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10, alignItems: 'flex-end' }}>
-              <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label">From</label>
-                <input type="date" className="form-input" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
-              </div>
-              <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label">To</label>
-                <input type="date" className="form-input" value={dateTo} onChange={e => setDateTo(e.target.value)} />
-              </div>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
-                <button className="btn btn-primary btn-sm" style={{ flex: 1 }} onClick={handleBookingFilter}>Apply</button>
-                {(dateFrom || dateTo) && (
-                  <button className="btn btn-secondary btn-sm" style={{ flex: 1 }} onClick={() => { setDateFrom(''); setDateTo(''); setTimeout(handleBookingFilter, 0); }}>Clear</button>
-                )}
-              </div>
-            </div>
-          </div>
-
           {/* Summary */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
             {[
@@ -380,7 +436,7 @@ export default function ReportsPage() {
                   </tr>
                 ))}
                 {bookings.length === 0 && (
-                  <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>No bookings found</td></tr>
+                  <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>No bookings in this period</td></tr>
                 )}
               </tbody>
             </table>
@@ -413,7 +469,7 @@ export default function ReportsPage() {
                 </div>
               </div>
             ))}
-            {bookings.length === 0 && <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '1.5rem' }}>No bookings found</div>}
+            {bookings.length === 0 && <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '1.5rem' }}>No bookings in this period</div>}
           </div>
         </div>
       )}
@@ -482,7 +538,7 @@ export default function ReportsPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
                   <StatLine label="Bookings" value={String(v.totalBookings)} />
                   <StatLine label="Days" value={String(v.daysRented)} />
-                  <StatLine label="KM" value={`${(v.totalKm || 0).toLocaleString()}`} />
+                  <StatLine label="KM" value={(v.totalKm || 0).toLocaleString()} />
                 </div>
                 <div style={{ paddingTop: 6, borderTop: '1px solid var(--border-subtle)' }}>
                   <div style={{ color: 'var(--text-muted)', fontSize: '0.68rem', textTransform: 'uppercase', marginBottom: 2 }}>Admin Income</div>
