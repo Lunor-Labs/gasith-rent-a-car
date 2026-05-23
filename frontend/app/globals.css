@@ -473,6 +473,284 @@ tbody td { padding: 0.9rem 1rem; font-size: 0.88rem; color: var(--text-primary);
   border-color: var(--border);
 }
 
+/* ─── Dashboard: Fonts ────────────────────────────────────────────────────── */
+.admin-layout, .admin-main {
+  font-family: var(--font-geist), "Geist", ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px; line-height: 1.4;
+}
+.mono { font-family: var(--font-geist-mono, 'Geist Mono'), ui-monospace, monospace; font-feature-settings: "tnum"; }
+
+/* ─── Dashboard: Page header ──────────────────────────────────────────────── */
+.page-head {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 24px; flex-wrap: wrap;
+}
+.page-title {
+  font-size: 24px; font-weight: 600; letter-spacing: -0.018em; margin: 0;
+  font-family: var(--font-geist), "Geist", ui-sans-serif, system-ui, sans-serif;
+  color: var(--text-primary);
+}
+.page-sub { font-size: 13.5px; color: var(--text-muted); margin-top: 4px; }
+.page-actions { display: flex; gap: 8px; align-items: center; }
+
+/* ─── Dashboard: KPI grid ─────────────────────────────────────────────────── */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+.kpi {
+  background: var(--bg-card); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg); padding: 18px 20px 16px;
+  display: flex; flex-direction: column; gap: 12px;
+  position: relative; overflow: hidden;
+}
+.kpi-head { display: flex; align-items: center; gap: 10px; }
+.kpi-ico {
+  width: 30px; height: 30px; border-radius: 8px;
+  background: var(--bg-elevated); border: 1px solid var(--border-subtle);
+  display: grid; place-items: center; color: var(--text-secondary); flex: none;
+}
+.kpi-label { font-size: 12.5px; color: var(--text-muted); font-weight: 500; flex: 1; }
+.kpi-spark { position: absolute; right: 0; bottom: 0; opacity: 0.55; pointer-events: none; }
+.kpi-value {
+  font-size: 26px; font-weight: 500; letter-spacing: -0.02em;
+  color: var(--text-primary); line-height: 1;
+  font-family: var(--font-geist-mono, 'Geist Mono'), ui-monospace, monospace;
+  font-feature-settings: "tnum";
+}
+.kpi-value .unit { font-size: 13px; font-weight: 400; color: var(--text-muted); margin-right: 4px; }
+.kpi-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.kpi-context { font-size: 11.5px; color: var(--text-muted); }
+
+/* ─── Dashboard: Delta badges ─────────────────────────────────────────────── */
+.delta {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11.5px; font-weight: 500; padding: 2px 7px; border-radius: 999px;
+  font-family: var(--font-geist-mono, 'Geist Mono'), ui-monospace, monospace;
+}
+.delta.pos { color: var(--success); background: rgba(34,197,94,0.12); }
+.delta.neg { color: var(--danger);  background: rgba(239,68,68,0.12); }
+
+/* ─── Dashboard: Card header pattern ─────────────────────────────────────── */
+.card-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.card-title { font-size: 14px; font-weight: 600; letter-spacing: -0.005em; color: var(--text-primary); }
+.card-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.card-body { padding: 4px 20px 20px; }
+
+/* ─── Dashboard: Range tabs ───────────────────────────────────────────────── */
+.tabs {
+  display: inline-flex; background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle); border-radius: 8px; padding: 3px;
+}
+.tab {
+  padding: 4px 10px; font-size: 12px; font-weight: 500;
+  border: none; cursor: pointer; border-radius: 5px;
+  background: transparent; color: var(--text-muted);
+  transition: background 0.12s, color 0.12s; font-family: inherit;
+}
+.tab.active { background: var(--bg-card); color: var(--text-primary); }
+.tab:hover:not(.active) { color: var(--text-secondary); }
+
+/* ─── Dashboard: Chart stats area ────────────────────────────────────────── */
+.chart-stats {
+  display: flex; align-items: baseline; gap: 16px;
+  padding: 4px 20px 16px; flex-wrap: wrap;
+}
+.chart-stat-main {
+  font-size: 30px; font-weight: 500; letter-spacing: -0.02em; color: var(--text-primary);
+  font-family: var(--font-geist-mono, 'Geist Mono'), ui-monospace, monospace;
+}
+.chart-stat-main .unit { color: var(--text-muted); font-size: 14px; margin-right: 5px; font-weight: 400; }
+.chart-legend { display: flex; gap: 14px; margin-left: auto; align-items: center; }
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
+.legend-dot { width: 8px; height: 8px; border-radius: 2px; }
+
+/* ─── Dashboard: Row grid layouts ────────────────────────────────────────── */
+.row-2-1   { display: grid; grid-template-columns: 1fr; gap: 14px; }
+.row-1-1-1 { display: grid; grid-template-columns: 1fr; gap: 14px; }
+.row-1-2   { display: grid; grid-template-columns: 1fr; gap: 14px; }
+
+/* ─── Dashboard: Utilities ───────────────────────────────────────────────── */
+.muted { color: var(--text-muted); }
+.dim   { color: var(--text-muted); }
+
+/* ─── Dashboard: Ghost text link ─────────────────────────────────────────── */
+.link {
+  font-size: 12px; color: var(--text-muted);
+  display: inline-flex; align-items: center; gap: 4px;
+  background: none; border: none; padding: 0; cursor: pointer; text-decoration: none;
+}
+.link:hover { color: var(--gold); }
+
+/* ─── Dashboard: Fleet table ─────────────────────────────────────────────── */
+.table { width: 100%; border-collapse: collapse; }
+.table th {
+  text-align: left; font-size: 11px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted);
+  padding: 10px 20px; border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-secondary);
+}
+.table td {
+  padding: 12px 20px; font-size: 13px; color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.table tr:last-child td { border-bottom: none; }
+.table tr:hover td { background: var(--bg-secondary); }
+
+/* ─── Dashboard: Status pill with pip dot ────────────────────────────────── */
+.status-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11.5px; font-weight: 500;
+  padding: 2px 9px 2px 7px; border-radius: 999px;
+  border: 1px solid transparent; white-space: nowrap;
+}
+.status-pill .pip { width: 6px; height: 6px; border-radius: 50%; }
+.status-pill.available { background: rgba(34,197,94,0.12);  color: var(--success); }
+.status-pill.available .pip { background: var(--success); }
+.status-pill.on-rent, .status-pill.active { background: rgba(59,130,246,0.12); color: var(--info); }
+.status-pill.on-rent .pip, .status-pill.active .pip { background: var(--info); }
+.status-pill.service, .status-pill.maintenance { background: rgba(245,158,11,0.12); color: var(--warning); }
+.status-pill.service .pip, .status-pill.maintenance .pip { background: var(--warning); }
+.status-pill.overdue { background: rgba(239,68,68,0.12); color: var(--danger); }
+.status-pill.overdue .pip { background: var(--danger); }
+.status-pill.completed { background: rgba(34,197,94,0.12);  color: var(--success); }
+.status-pill.completed .pip { background: var(--success); }
+.status-pill.pending  { background: rgba(245,158,11,0.12); color: var(--warning); }
+.status-pill.pending .pip  { background: var(--warning); }
+.status-pill.cancelled { background: rgba(239,68,68,0.12);  color: var(--danger); }
+.status-pill.cancelled .pip { background: var(--danger); }
+
+/* ─── Dashboard: Fleet table cells ──────────────────────────────────────── */
+.plate-tag {
+  font-family: var(--font-geist-mono, 'Geist Mono'), monospace;
+  font-size: 11px; background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle); color: var(--text-secondary);
+  padding: 2px 6px; border-radius: 4px;
+  letter-spacing: 0.02em; white-space: nowrap;
+}
+.vehicle-cell { display: flex; align-items: center; gap: 10px; }
+.vehicle-name { color: var(--text-primary); font-weight: 500; }
+.vehicle-sub  { color: var(--text-muted); font-size: 11.5px; }
+
+/* ─── Dashboard: Weekly bookings bars ────────────────────────────────────── */
+.bars {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  height: 180px; padding: 0 4px; gap: 6px;
+}
+.bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.bar {
+  width: 100%;
+  background: linear-gradient(180deg, var(--gold) 0%, var(--gold-dark) 100%);
+  border-radius: 4px 4px 2px 2px; min-height: 4px; transition: filter 0.15s;
+}
+.bar.muted {
+  background: linear-gradient(180deg, var(--bg-elevated) 0%, var(--bg-card) 100%);
+  border: 1px solid var(--border-subtle);
+}
+.bar:hover { filter: brightness(1.15); }
+.bar-label { font-size: 11px; color: var(--text-muted); font-family: var(--font-geist-mono, 'Geist Mono'), monospace; }
+
+/* ─── Dashboard: Recent bookings list ───────────────────────────────────── */
+.list-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 20px; border-bottom: 1px solid var(--border-subtle);
+  transition: background 0.1s;
+}
+.list-row:last-child { border-bottom: none; }
+.list-row:hover { background: var(--bg-secondary); }
+.cust-av {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--bg-elevated); border: 1px solid var(--border-subtle);
+  display: grid; place-items: center; color: var(--text-secondary);
+  font-size: 11.5px; font-weight: 500; flex: none;
+}
+.list-main { flex: 1; min-width: 0; }
+.list-title { font-size: 13px; color: var(--text-primary); font-weight: 500; }
+.list-sub { font-size: 11.5px; color: var(--text-muted); margin-top: 2px; display: flex; align-items: center; gap: 6px; }
+.list-amount {
+  font-family: var(--font-geist-mono, 'Geist Mono'), monospace;
+  font-size: 13px; color: var(--text-primary); text-align: right;
+}
+.list-amount .ccy { color: var(--text-muted); font-size: 10.5px; margin-right: 3px; }
+.list-amount-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+/* ─── Dashboard: Quick tasks ─────────────────────────────────────────────── */
+.task {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 11px 20px; border-bottom: 1px solid var(--border-subtle);
+  transition: background 0.1s;
+}
+.task:last-child { border-bottom: none; }
+.task:hover { background: var(--bg-secondary); }
+.task.done .task-title { color: var(--text-muted); text-decoration: line-through; }
+.checkbox {
+  width: 16px; height: 16px; border-radius: 5px;
+  border: 1.5px solid var(--border); background: var(--bg-elevated);
+  display: grid; place-items: center; cursor: pointer;
+  flex: none; margin-top: 1px; transition: all 0.12s;
+}
+.checkbox.checked { background: var(--gold); border-color: var(--gold); }
+.checkbox.checked svg { color: #000; }
+.task-body { flex: 1; min-width: 0; }
+.task-title { font-size: 13px; color: var(--text-primary); font-weight: 500; }
+.task-meta { font-size: 11px; color: var(--text-muted); margin-top: 3px; display: flex; gap: 8px; align-items: center; }
+.tag {
+  font-size: 10.5px; padding: 1px 7px; border-radius: 999px;
+  background: var(--bg-elevated); border: 1px solid var(--border-subtle);
+  color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 500;
+}
+.tag.urgent { background: rgba(239,68,68,0.12);  color: var(--danger);  border-color: transparent; }
+.tag.soon, .tag.today { background: rgba(245,158,11,0.12); color: var(--warning); border-color: transparent; }
+.tag.low    { background: rgba(34,197,94,0.12);  color: var(--success); border-color: transparent; }
+
+/* ─── Dashboard: Fleet donut ─────────────────────────────────────────────── */
+.donut-wrap { display: flex; align-items: center; gap: 22px; padding: 8px 20px 20px; }
+.donut-center { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; pointer-events: none; }
+.donut-pct {
+  font-family: var(--font-geist-mono, 'Geist Mono'), monospace;
+  font-size: 24px; font-weight: 500; letter-spacing: -0.015em; color: var(--text-primary);
+}
+.donut-label { font-size: 10.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 2px; }
+.legend-stack { display: flex; flex-direction: column; gap: 10px; flex: 1; }
+.legend-stack .row { display: flex; align-items: center; gap: 10px; font-size: 12.5px; color: var(--text-secondary); }
+.legend-stack .swatch { width: 8px; height: 8px; border-radius: 2px; flex: none; }
+.legend-stack b { color: var(--text-primary); font-family: var(--font-geist-mono, 'Geist Mono'), monospace; font-weight: 500; margin-left: auto; }
+
+/* ─── Dashboard: Activity feed ───────────────────────────────────────────── */
+.activity-row {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 11px 20px; position: relative;
+}
+.activity-row:not(:last-child)::after {
+  content: ""; position: absolute;
+  left: 30px; top: 38px; bottom: -2px;
+  width: 1px; background: var(--border-subtle);
+}
+.act-ico {
+  width: 24px; height: 24px; border-radius: 6px;
+  background: var(--bg-elevated); border: 1px solid var(--border-subtle);
+  display: grid; place-items: center; color: var(--text-secondary);
+  flex: none; position: relative; z-index: 1;
+}
+.act-body { font-size: 12.5px; color: var(--text-secondary); flex: 1; }
+.act-body b { color: var(--text-primary); font-weight: 500; }
+.act-time { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+/* ─── Dashboard: Desktop breakpoints ─────────────────────────────────────── */
+@media (min-width: 768px) {
+  .kpi-grid { grid-template-columns: repeat(4, 1fr); }
+}
+@media (min-width: 1024px) {
+  .row-2-1   { grid-template-columns: 2fr 1fr; }
+  .row-1-1-1 { grid-template-columns: 1.4fr 1.2fr 1fr; }
+  .row-1-2   { grid-template-columns: 1fr 2fr; }
+}
+
 /* ── Main content area ── */
 .admin-main {
   flex: 1; min-height: 100vh;
