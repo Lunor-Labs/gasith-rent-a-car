@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { getBookings, getCustomers, getVehicles, createBooking, deleteBooking, getPricingConfig } from '@/lib/api';
 import CustomerFormModal from '@/components/CustomerFormModal';
+import SearchableCustomerSelect from '@/components/SearchableCustomerSelect';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { Plus, Trash2, CalendarDays, Route, CalendarCheck, CalendarPlus, Users, Car, Gauge, Banknote, NotebookPen } from 'lucide-react';
@@ -276,10 +277,12 @@ export default function BookingsPage() {
                       <Plus size={11} strokeWidth={2.5} /> New
                     </button>
                   </label>
-                  <select className="form-select" value={form.customerId} onChange={e => setForm({ ...form, customerId: e.target.value })} required>
-                    <option value="">Select a customer...</option>
-                    {customers.map(c => <option key={c.id} value={c.id}>{c.name} — {c.phone}</option>)}
-                  </select>
+                  <SearchableCustomerSelect
+                    customers={customers}
+                    selectedId={form.customerId}
+                    onChange={id => setForm({ ...form, customerId: id })}
+                    required
+                  />
                 </div>
 
                 {/* Vehicle */}
