@@ -66,6 +66,12 @@ CREATE TABLE bookings (
   free_km                NUMERIC(10,1),
   extra_km               NUMERIC(12,1) NOT NULL DEFAULT 0,
   extra_km_charge        NUMERIC(12,2) NOT NULL DEFAULT 0,
+  due_date               TIMESTAMPTZ,
+  actual_return_date     TIMESTAMPTZ,
+  payment_method         TEXT DEFAULT 'cash'
+                         CHECK (payment_method IN ('cash', 'credit', 'mixed')),
+  cash_amount            NUMERIC(12,2),
+  credit_amount          NUMERIC(12,2),
   created_at             TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

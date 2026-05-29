@@ -189,6 +189,8 @@ router.put('/:id/complete', authMiddleware, async (req, res) => {
   try {
     const {
       endMeterReading, endDate,
+      dueDate, actualReturnDate,
+      paymentMethod, cashAmount, creditAmount,
       commissionAmount, freeKm, additionalDiscount,
     } = req.body;
 
@@ -218,8 +220,9 @@ router.put('/:id/complete', authMiddleware, async (req, res) => {
       .single();
 
     const start = new Date(booking.start_date);
-    const end = endDate ? new Date(endDate) : new Date();
-    const days = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+    // Use due date for billing calculation; fall back to endDate or today
+    const billingEnd = dueDate ? new Date(dueDate) : (endDate ? new Date(endDate) : new Date());
+    const days = Math.max(1, Math.ceil((billingEnd.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
 
     // Outsourced vehicles: meter reading is optional — 0 KM if not provided
     const endReading = endMeterReading ? Number(endMeterReading) : null;
@@ -267,11 +270,28 @@ router.put('/:id/complete', authMiddleware, async (req, res) => {
         : defaultCommission;
     }
 
+    // Resolve payment method fields
+    const resolvedPaymentMethod = paymentMethod || 'cash';
+    let resolvedCashAmount: number | null = null;
+    let resolvedCreditAmount: number | null = null;
+    if (resolvedPaymentMethod === 'cash') {
+      resolvedCashAmount = finalAmount;
+      resolvedCreditAmount = null;
+    } else if (resolvedPaymentMethod === 'credit') {
+      resolvedCashAmount = null;
+      resolvedCreditAmount = finalAmount;
+    } else if (resolvedPaymentMethod === 'mixed') {
+      resolvedCashAmount = Number(cashAmount) || 0;
+      resolvedCreditAmount = Number(creditAmount) || 0;
+    }
+
     const { error: updateError } = await supabase
       .from('bookings')
       .update({
         end_meter_reading: endReading,
         end_date: endDate ? new Date(endDate).toISOString() : new Date().toISOString(),
+        due_date: dueDate ? new Date(dueDate).toISOString() : (endDate ? new Date(endDate).toISOString() : new Date().toISOString()),
+        actual_return_date: actualReturnDate ? new Date(actualReturnDate).toISOString() : new Date().toISOString(),
         total_km: totalKm,
         base_amount: baseAmount,
         discount_amount: computedDiscount,
@@ -283,6 +303,9 @@ router.put('/:id/complete', authMiddleware, async (req, res) => {
         free_km: resolvedFreeKm,
         outsourced_payment: booking.is_outsourced ? finalAmount : booking.outsourced_payment,
         commission_amount: booking.is_outsourced ? resolvedCommissionAmount : null,
+        payment_method: resolvedPaymentMethod,
+        cash_amount: resolvedCashAmount,
+        credit_amount: resolvedCreditAmount,
         status: 'completed',
       })
       .eq('id', req.params.id);
@@ -372,6 +395,11 @@ router.put('/:id', authMiddleware, async (req, res) => {
       outsourcedPayment: 'outsourced_payment',
       commissionRate: 'commission_rate',
       invoiceUrl: 'invoice_url',
+      dueDate: 'due_date',
+      actualReturnDate: 'actual_return_date',
+      paymentMethod: 'payment_method',
+      cashAmount: 'cash_amount',
+      creditAmount: 'credit_amount',
     };
 
     for (const [key, value] of Object.entries(req.body)) {
@@ -454,6 +482,11 @@ function mapBookingToResponse(b: any) {
     status: b.status,
     invoiceUrl: b.invoice_url,
     notes: b.notes,
+    dueDate: b.due_date,
+    actualReturnDate: b.actual_return_date,
+    paymentMethod: b.payment_method,
+    cashAmount: b.cash_amount,
+    creditAmount: b.credit_amount,
     createdAt: b.created_at,
   };
 }
