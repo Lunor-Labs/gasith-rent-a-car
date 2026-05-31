@@ -27,6 +27,7 @@ export const metadata: Metadata = {
     title: 'Gasith Travel – Car Rentals Sri Lanka',
     description: 'Premium vehicle rental services in Sri Lanka',
     type: 'website',
+    images: [{ url: '/logo.webp', width: 800, height: 600, alt: 'Gasith Travel' }],
   },
 };
 
