@@ -90,8 +90,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="sidebar-brand">
           <div className="brand-mark">G</div>
           <div>
-            <div className="brand-name">Gasith</div>
-            <div className="brand-sub">Rent a Car</div>
+            <div className="brand-name">Gasith Travel</div>
+            <div className="brand-sub">Car Rentals</div>
           </div>
         </div>
 
