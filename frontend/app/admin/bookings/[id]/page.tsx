@@ -18,10 +18,14 @@ export default function BookingDetailPage() {
 
   const [endForm, setEndForm] = useState({
     endMeterReading: '',
-    endDate: new Date().toISOString().split('T')[0],
+    dueDate: new Date().toISOString().split('T')[0],
+    actualReturnDate: new Date().toISOString().split('T')[0],
     commissionAmount: '',      // blank = use auto-calc
     freeKm: '',
     additionalDiscount: '',
+    paymentMethod: 'cash' as 'cash' | 'credit' | 'mixed',
+    cashAmount: '',
+    creditAmount: '',
   });
 
   const load = async () => {
@@ -32,6 +36,8 @@ export default function BookingDetailPage() {
       setPricingConfig(p.data);
       setEndForm(f => ({
         ...f,
+        // pre-fill due date from booking's original end date
+        dueDate: b.data.endDate ? new Date(b.data.endDate).toISOString().split('T')[0] : f.dueDate,
         // pre-fill only if a custom commission was previously saved
         commissionAmount: b.data.commissionAmount != null ? String(b.data.commissionAmount) : '',
       }));
@@ -54,13 +60,13 @@ export default function BookingDetailPage() {
   };
 
   // ── Preview calculations ──────────────────────────────────────────────────
-  // Computed from end date alone — updates immediately when end date changes, no meter reading needed
+  // Computed from due date alone (used for billing) — updates immediately when due date changes
   const autoFreeKm = (() => {
-    if (!booking || !endForm.endDate || !booking.startDate) return null;
+    if (!booking || !endForm.dueDate || !booking.startDate) return null;
     const start = new Date(typeof booking.startDate === 'string'
       ? booking.startDate
       : new Date(booking.startDate._seconds * 1000));
-    const end = new Date(endForm.endDate);
+    const end = new Date(endForm.dueDate);
     const days = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
     const d1 = booking.bookingFirstDayFreeKm ?? pricingConfig?.firstDayFreeKm ?? 150;
     const sub = booking.bookingSubsequentDayFreeKm ?? pricingConfig?.subsequentDayFreeKm ?? 100;
@@ -69,14 +75,15 @@ export default function BookingDetailPage() {
 
   const previewPerDay = () => {
     if (!booking) return null;
-    if (!endForm.endDate || !booking.startDate) return null;
+    if (!endForm.dueDate || !booking.startDate) return null;
     // owned vehicles require meter reading; outsourced can proceed without it (0 KM)
     if (!booking.isOutsourced && !endForm.endMeterReading) return null;
 
     const start = new Date(typeof booking.startDate === 'string'
       ? booking.startDate
       : new Date(booking.startDate._seconds * 1000));
-    const end = new Date(endForm.endDate);
+    // Use due date for billing calculation
+    const end = new Date(endForm.dueDate);
     const days = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
 
     const totalKm = endForm.endMeterReading
@@ -128,17 +135,38 @@ export default function BookingDetailPage() {
 
   const commissionCalc = commissionPreview();
 
+  // ── Payment validation ────────────────────────────────────────────────────
+  const paymentValid = (() => {
+    if (endForm.paymentMethod !== 'mixed') return true;
+    if (!calcDay) return false;
+    const cash = Number(endForm.cashAmount) || 0;
+    const credit = Number(endForm.creditAmount) || 0;
+    return Math.abs((cash + credit) - calcDay.final) < 1; // allow LKR 1 rounding tolerance
+  })();
+
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleComplete = async (e: React.FormEvent) => {
-    e.preventDefault(); setCompleting(true);
+    e.preventDefault();
+    if (endForm.paymentMethod === 'mixed' && !paymentValid) {
+      toast.error('Cash + Credit amounts must equal the total amount');
+      return;
+    }
+    setCompleting(true);
     try {
       await completeBooking(id, {
-        endDate: endForm.endDate,
+        dueDate: endForm.dueDate,
+        actualReturnDate: endForm.actualReturnDate,
+        endDate: endForm.dueDate, // keep end_date in sync for backward compat
         endMeterReading: endForm.endMeterReading ? Number(endForm.endMeterReading) : undefined,
         // send commissionAmount only if admin entered a custom override; else backend auto-calcs
         commissionAmount: endForm.commissionAmount !== '' ? Number(endForm.commissionAmount) : undefined,
         freeKm: endForm.freeKm ? Number(endForm.freeKm) : undefined,
         additionalDiscount: endForm.additionalDiscount ? Number(endForm.additionalDiscount) : 0,
+        paymentMethod: endForm.paymentMethod,
+        cashAmount: endForm.paymentMethod === 'mixed' ? Number(endForm.cashAmount) || 0
+          : endForm.paymentMethod === 'cash' ? (calcDay?.final ?? 0) : undefined,
+        creditAmount: endForm.paymentMethod === 'mixed' ? Number(endForm.creditAmount) || 0
+          : endForm.paymentMethod === 'credit' ? (calcDay?.final ?? 0) : undefined,
       });
       toast.success('Booking completed!'); load();
     } catch (err: any) { toast.error(err?.response?.data?.error || 'Failed'); }
@@ -248,12 +276,25 @@ export default function BookingDetailPage() {
             {booking.isOutsourced ? '💰' : '📅'} Complete Booking
           </div>
           <form onSubmit={handleComplete} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {/* Due Date & Actual Return Date */}
             <div className="grid-2">
               <div className="form-group">
-                <label className="form-label">End Date *</label>
-                <input type="date" className="form-input" value={endForm.endDate} onChange={e => setEndForm({ ...endForm, endDate: e.target.value })} required />
+                <label className="form-label">
+                  Due Date *
+                  <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: '0.4rem', fontSize: '0.72rem' }}>(billing date)</span>
+                </label>
+                <input type="date" className="form-input" value={endForm.dueDate} onChange={e => setEndForm({ ...endForm, dueDate: e.target.value })} required />
               </div>
+              <div className="form-group">
+                <label className="form-label">
+                  Actual Return Date *
+                  <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: '0.4rem', fontSize: '0.72rem' }}>(handed over)</span>
+                </label>
+                <input type="date" className="form-input" value={endForm.actualReturnDate} onChange={e => setEndForm({ ...endForm, actualReturnDate: e.target.value })} required />
+              </div>
+            </div>
 
+            <div className="grid-2">
               <div className="form-group">
                 <label className="form-label">
                   End Meter Reading (km)
@@ -281,7 +322,7 @@ export default function BookingDetailPage() {
                 </label>
                 <input
                   type="number" className="form-input" min={0}
-                  placeholder={autoFreeKm != null ? String(autoFreeKm) : 'Set end date first'}
+                  placeholder={autoFreeKm != null ? String(autoFreeKm) : 'Set due date first'}
                   value={endForm.freeKm}
                   onChange={e => setEndForm({ ...endForm, freeKm: e.target.value })}
                 />
@@ -418,15 +459,121 @@ export default function BookingDetailPage() {
               </div>
             )}
 
-            <button type="submit" className="btn btn-primary" disabled={completing} style={{ alignSelf: 'stretch' }}>
+            {/* Payment Method */}
+            <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: '1rem' }}>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.6rem' }}>Payment Method</div>
+              <div style={{ display: 'flex', gap: '0.4rem', marginBottom: endForm.paymentMethod === 'mixed' ? '0.75rem' : 0 }}>
+                {(['cash', 'credit', 'mixed'] as const).map(method => (
+                  <button
+                    key={method}
+                    type="button"
+                    onClick={() => setEndForm({ ...endForm, paymentMethod: method, cashAmount: '', creditAmount: '' })}
+                    className={`btn btn-sm ${endForm.paymentMethod === method ? 'btn-primary' : 'btn-secondary'}`}
+                    style={{ textTransform: 'capitalize', flex: 1 }}
+                  >
+                    {method === 'mixed' ? '💳 Mixed' : method === 'cash' ? '💵 Cash' : '💳 Credit'}
+                  </button>
+                ))}
+              </div>
+              {endForm.paymentMethod === 'mixed' && (
+                <>
+                  <div className="grid-2" style={{ gap: '0.6rem' }}>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label">Cash Amount (LKR) *</label>
+                      <input
+                        type="number" className="form-input" min={0}
+                        placeholder="0"
+                        value={endForm.cashAmount}
+                        onChange={e => {
+                          const cash = e.target.value;
+                          const total = calcDay?.final ?? 0;
+                          const credit = cash !== '' ? String(Math.max(0, total - Number(cash))) : '';
+                          setEndForm({ ...endForm, cashAmount: cash, creditAmount: credit });
+                        }}
+                        required
+                      />
+                    </div>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label">Credit Amount (LKR) *</label>
+                      <input
+                        type="number" className="form-input" min={0}
+                        placeholder="0"
+                        value={endForm.creditAmount}
+                        onChange={e => {
+                          const credit = e.target.value;
+                          const total = calcDay?.final ?? 0;
+                          const cash = credit !== '' ? String(Math.max(0, total - Number(credit))) : '';
+                          setEndForm({ ...endForm, creditAmount: credit, cashAmount: cash });
+                        }}
+                        required
+                      />
+                    </div>
+                  </div>
+                  {calcDay && (
+                    <div style={{
+                      marginTop: '0.5rem', fontSize: '0.78rem', padding: '0.4rem 0.6rem',
+                      borderRadius: 8,
+                      background: paymentValid ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.08)',
+                      color: paymentValid ? '#22c55e' : '#ef4444',
+                      border: `1px solid ${paymentValid ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)'}`,
+                    }}>
+                      {paymentValid
+                        ? `✓ Cash (LKR ${(Number(endForm.cashAmount) || 0).toLocaleString()}) + Credit (LKR ${(Number(endForm.creditAmount) || 0).toLocaleString()}) = Total`
+                        : `⚠ Cash + Credit = LKR ${((Number(endForm.cashAmount) || 0) + (Number(endForm.creditAmount) || 0)).toLocaleString()} — must equal LKR ${calcDay.final.toLocaleString()}`
+                      }
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            <button type="submit" className="btn btn-primary" disabled={completing || (endForm.paymentMethod === 'mixed' && !paymentValid)} style={{ alignSelf: 'stretch' }}>
               {completing ? <span className="spinner" /> : '✓ Complete Booking'}
             </button>
           </form>
         </div>
       )}
 
-      {/* ── Completed — Invoice Section ──────────────────────────────────── */}
+      {/* ── Completed — Dates & Payment Info ─────────────────────────────── */}
       {booking.status === 'completed' && (
+        <>
+        <div className="card" style={{ padding: '1.25rem', marginBottom: '1rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem' }}>
+            {booking.dueDate && (
+              <div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Due Date</div>
+                <div style={{ fontWeight: 600, fontSize: '0.92rem' }}>{fmtDate(booking.dueDate)}</div>
+              </div>
+            )}
+            {booking.actualReturnDate && (
+              <div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Actual Return Date</div>
+                <div style={{ fontWeight: 600, fontSize: '0.92rem' }}>{fmtDate(booking.actualReturnDate)}</div>
+              </div>
+            )}
+            <div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Payment Method</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <span className={`badge ${booking.paymentMethod === 'cash' ? 'badge-success' : booking.paymentMethod === 'credit' ? 'badge-info' : 'badge-warning'}`} style={{ textTransform: 'capitalize' }}>
+                  {booking.paymentMethod === 'mixed' ? '💳 Mixed' : booking.paymentMethod === 'cash' ? '💵 Cash' : '💳 Credit'}
+                </span>
+              </div>
+            </div>
+            {booking.paymentMethod === 'mixed' && (
+              <>
+                <div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Cash Amount</div>
+                  <div style={{ fontWeight: 700, fontSize: '0.92rem', color: '#22c55e' }}>LKR {(booking.cashAmount || 0).toLocaleString()}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Credit Amount</div>
+                  <div style={{ fontWeight: 700, fontSize: '0.92rem', color: '#3b82f6' }}>LKR {(booking.creditAmount || 0).toLocaleString()}</div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
         <div className="card" style={{ padding: '1.25rem' }}>
           <div style={{ fontWeight: 700, marginBottom: '1rem' }}>🧾 Invoice</div>
 
@@ -485,7 +632,7 @@ export default function BookingDetailPage() {
             )}
           </div>
         </div>
-      )}
+        </>)}
     </div>
   );
 }
