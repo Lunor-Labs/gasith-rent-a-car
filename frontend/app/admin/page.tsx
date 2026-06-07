@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { getDashboardStats, getRevenueStats, getBookings, getVehicles, getCustomers } from '@/lib/api';
+import { getDashboardStats, getRevenueStats, getBookings, getVehicles, getCustomers, getTasks, createTask, toggleTask } from '@/lib/api';
 import {
   ComposedChart, Area, Line,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
@@ -12,6 +12,7 @@ import {
   ArrowUp, ArrowDown,
 } from 'lucide-react';
 import Link from 'next/link';
+import toast from 'react-hot-toast';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Stats    = { activeBookings: number; totalBookings: number; totalCustomers: number; totalVehicles: number; monthRevenue: number; };
@@ -20,6 +21,7 @@ type DailyRevenue = { period: string; totalRevenue: number; totalBookings: numbe
 type Booking  = { id: string; customerId: string; vehicleId: string; status: string; startDate: any; endDate: any; finalAmount: number; createdAt: any; };
 type Vehicle  = { id: string; name: string; plate: string; isAvailable: boolean; pricePerDay: number; };
 type Customer = { id: string; name: string; phone?: string; };
+type Task     = { id: string; title: string; tag: string; tagLabel: string; done: boolean };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmtM(v: number) {
@@ -178,15 +180,6 @@ function FleetDonut({ vehicles, activeIds }: { vehicles: Vehicle[]; activeIds: S
   );
 }
 
-// ─── Static quick tasks ───────────────────────────────────────────────────────
-const INITIAL_TASKS = [
-  { title: 'Renew fleet insurance',         meta: 'Due end of month',    tag: 'urgent', tagLabel: 'Urgent', done: false },
-  { title: 'Schedule 1,000 km service',     meta: 'Check vehicle log',   tag: 'soon',   tagLabel: 'Soon',   done: false },
-  { title: 'Follow up overdue payment',     meta: 'Outstanding invoice', tag: 'urgent', tagLabel: 'Urgent', done: false },
-  { title: 'Update fleet photos',           meta: 'CMS update',          tag: 'low',    tagLabel: 'Low',    done: false },
-  { title: 'Review monthly revenue report', meta: 'Finance summary',     tag: 'low',    tagLabel: 'Low',    done: false },
-];
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -198,7 +191,10 @@ export default function DashboardPage() {
   const [loading,   setLoading]   = useState(true);
   const [range,     setRange]     = useState<'7D' | '3M' | '6M' | '12M'>('12M');
   const [dailyRevenue, setDailyRevenue] = useState<DailyRevenue[]>([]);
-  const [tasks,     setTasks]     = useState(INITIAL_TASKS);
+  const [tasks,      setTasks]      = useState<Task[]>([]);
+  const [addingTask, setAddingTask] = useState(false);
+  const [newTitle,   setNewTitle]   = useState('');
+  const [newTag,     setNewTag]     = useState<'urgent' | 'soon' | 'low'>('soon');
 
   const rawName   = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split('@')[0] || 'Admin';
   const firstName = (() => { const w = rawName.split(/[\s._]/)[0]; return w.charAt(0).toUpperCase() + w.slice(1); })();
@@ -210,12 +206,14 @@ export default function DashboardPage() {
     Promise.allSettled([
       getDashboardStats(), getRevenueStats(),
       getBookings({ limit: 50 }), getVehicles({ limit: 20 }), getCustomers(),
-    ]).then(([s, r, b, v, c]) => {
+      getTasks(),
+    ]).then(([s, r, b, v, c, tk]) => {
       setStats(s.status === 'fulfilled' ? s.value.data : { activeBookings: 0, totalBookings: 0, totalCustomers: 0, totalVehicles: 0, monthRevenue: 0 });
       setRevenue(r.status === 'fulfilled' ? [...r.value.data].reverse() : []);
       setBookings(b.status === 'fulfilled' ? b.value.data : []);
       setVehicles(v.status === 'fulfilled' ? v.value.data : []);
       setCustomers(c.status === 'fulfilled' ? c.value.data : []);
+      setTasks(tk.status === 'fulfilled' ? tk.value.data : []);
     }).finally(() => setLoading(false));
   }, []);
 
@@ -294,6 +292,20 @@ export default function DashboardPage() {
       return { Icon: XCircle,      title: 'Booking cancelled',             sub: `${custName} · ${vehName}`, time };
     return   { Icon: CalendarDays, title: `New booking — ${vehName}`,     sub: custName, time };
   });
+
+  const handleAddTask = async () => {
+    if (!newTitle.trim()) return;
+    const tagLabels: Record<string, string> = { urgent: 'Urgent', soon: 'Soon', low: 'Low' };
+    try {
+      const r = await createTask({ title: newTitle.trim(), tag: newTag, tagLabel: tagLabels[newTag] });
+      setTasks(prev => [...prev, r.data]);
+      setNewTitle('');
+      setNewTag('soon');
+      setAddingTask(false);
+    } catch {
+      toast.error('Failed to add task');
+    }
+  };
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
@@ -541,27 +553,80 @@ export default function DashboardPage() {
               <div className="card-title">Quick Tasks</div>
               <div className="card-sub">{tasks.filter(t => !t.done).length} pending</div>
             </div>
-            <button className="link">Add task <Plus size={12} /></button>
+            <button className="link" onClick={() => setAddingTask(a => !a)}>
+              Add task <Plus size={12} />
+            </button>
           </div>
           <div>
-            {tasks.map((t, i) => (
-              <div key={i} className={`task ${t.done ? 'done' : ''}`}>
+            {tasks.map(t => (
+              <div key={t.id} className={`task ${t.done ? 'done' : ''}`}>
                 <div
                   className={`checkbox ${t.done ? 'checked' : ''}`}
-                  onClick={() => setTasks(prev => prev.map((x, j) => j === i ? { ...x, done: !x.done } : x))}
+                  onClick={async () => {
+                    setTasks(prev => prev.map(x => x.id === t.id ? { ...x, done: !x.done } : x));
+                    try { await toggleTask(t.id); } catch { /* optimistic */ }
+                  }}
                 >
                   {t.done && <Check size={11} strokeWidth={2.5} />}
                 </div>
                 <div className="task-body">
                   <div className="task-title">{t.title}</div>
                   <div className="task-meta">
-                    <span>{t.meta}</span>
                     {t.tag && <span className={`tag ${t.tag}`}>{t.tagLabel}</span>}
                   </div>
                 </div>
               </div>
             ))}
+            {tasks.length === 0 && !addingTask && (
+              <div style={{ padding: '1.5rem 1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+                No tasks yet
+              </div>
+            )}
           </div>
+          {addingTask && (
+            <div style={{ padding: '0.75rem 1rem', borderTop: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <input
+                autoFocus
+                type="text"
+                className="form-input"
+                placeholder="Task title…"
+                value={newTitle}
+                onChange={e => setNewTitle(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleAddTask(); if (e.key === 'Escape') { setAddingTask(false); setNewTitle(''); setNewTag('soon'); } }}
+                style={{ fontSize: '0.82rem', padding: '0.32rem 0.6rem' }}
+              />
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                {(['urgent', 'soon', 'low'] as const).map(tg => (
+                  <button
+                    key={tg}
+                    onClick={() => setNewTag(tg)}
+                    style={{
+                      padding: '0.2rem 0.6rem', borderRadius: 99, border: 'none', cursor: 'pointer',
+                      fontSize: '0.7rem', fontWeight: 700,
+                      background: newTag === tg ? 'var(--gold)' : 'var(--bg-hover)',
+                      color: newTag === tg ? '#000' : 'var(--text-muted)',
+                    }}
+                  >
+                    {tg.charAt(0).toUpperCase() + tg.slice(1)}
+                  </button>
+                ))}
+                <div style={{ flex: 1 }} />
+                <button
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => { setAddingTask(false); setNewTitle(''); setNewTag('soon'); }}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={handleAddTask}
+                  disabled={!newTitle.trim()}
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
