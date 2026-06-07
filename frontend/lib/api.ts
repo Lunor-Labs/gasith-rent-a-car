@@ -61,3 +61,8 @@ export const getReportCommissions  = (params?: ReportParams) => API.get('/report
 export const getReportBookings     = (params?: ReportParams) => API.get('/reports/bookings',     { params });
 export const getReportVehicles     = (params?: ReportParams) => API.get('/reports/vehicles',     { params });
 export const toggleCommissionPaid  = (bookingId: string)  => API.patch(`/reports/commissions/${bookingId}/toggle-paid`);
+
+// ─── Tasks ───────────────────────────────────────────────────────────────────
+export const getTasks   = ()                                                        => API.get('/tasks');
+export const createTask = (data: { title: string; tag: string; tagLabel: string }) => API.post('/tasks', data);
+export const toggleTask = (id: string)                                              => API.patch(`/tasks/${id}`);
