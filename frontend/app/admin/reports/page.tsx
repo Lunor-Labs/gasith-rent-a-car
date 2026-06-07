@@ -5,7 +5,7 @@ import {
 } from 'recharts';
 import {
   getReportFinancial, getReportCommissions, getReportBookings, getReportVehicles,
-  toggleCommissionPaid,
+  toggleCommissionPaid, getVehicles,
 } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { Check, Clock } from 'lucide-react';
@@ -53,19 +53,26 @@ export default function ReportsPage() {
   const [bookings,    setBookings]    = useState<any[]>([]);
   const [vehicles,    setVehicles]    = useState<any[]>([]);
 
+  // Vehicle filter
+  const [vehicleList,   setVehicleList]   = useState<{ id: string; name: string; plate: string }[]>([]);
+  const [vehicleSearch, setVehicleSearch] = useState('');
+  const [vehicleId,     setVehicleId]     = useState('');
+  const [vehicleOpen,   setVehicleOpen]   = useState(false);
+
   // Shared date range
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo,   setDateTo]   = useState('');
 
-  const dateParams = () => ({
-    from: dateFrom || undefined,
-    to:   dateTo   || undefined,
+  const reportParams = () => ({
+    from:      dateFrom  || undefined,
+    to:        dateTo    || undefined,
+    vehicleId: vehicleId || undefined,
   });
 
-  const load = async (t: Tab) => {
+  const load = async (t: Tab, overrides?: { from?: string; to?: string; vehicleId?: string }) => {
     setLoading(true);
     try {
-      const p = dateParams();
+      const p = { ...reportParams(), ...overrides };
       if (t === 'financial')   { const r = await getReportFinancial(p);   setFinancial(r.data);   }
       if (t === 'commissions') { const r = await getReportCommissions(p);  setCommissions(r.data); }
       if (t === 'bookings')    { const r = await getReportBookings(p);     setBookings(r.data);    }
@@ -74,21 +81,26 @@ export default function ReportsPage() {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { load(tab); }, [tab]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load(tab); }, []);
 
-  const handleApply = () => load(tab);
+  useEffect(() => {
+    getVehicles().then(r =>
+      setVehicleList((r.data || []).map((v: any) => ({ id: v.id, name: v.name, plate: v.plate || '' })))
+    );
+  }, []);
+
   const handleClear = () => {
-    setDateFrom(''); setDateTo('');
-    // load with empty params after state clears
-    setLoading(true);
-    const p = { from: undefined, to: undefined };
-    const loaders: Record<Tab, () => Promise<any>> = {
-      financial:   () => getReportFinancial(p).then(r => setFinancial(r.data)),
-      commissions: () => getReportCommissions(p).then(r => setCommissions(r.data)),
-      bookings:    () => getReportBookings(p).then(r => setBookings(r.data)),
-      vehicles:    () => getReportVehicles(p).then(r => setVehicles(r.data)),
-    };
-    loaders[tab]().catch(() => toast.error('Failed')).finally(() => setLoading(false));
+    setDateFrom('');
+    setDateTo('');
+    load(tab, { from: undefined, to: undefined });
+  };
+
+  const handleTabChange = (t: Tab) => {
+    setVehicleSearch('');
+    setVehicleId('');
+    setTab(t);
+    load(t, { vehicleId: undefined });
   };
 
   const handleTogglePaid = async (bookingId: string) => {
@@ -132,20 +144,80 @@ export default function ReportsPage() {
     <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
       <div className="form-group" style={{ margin: 0 }}>
         <label className="form-label" style={{ fontSize: '0.68rem' }}>From</label>
-        <input type="date" className="form-input" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+        <input type="date" className="form-input" value={dateFrom}
+          onChange={e => { setDateFrom(e.target.value); load(tab, { from: e.target.value || undefined }); }}
           style={{ padding: '0.32rem 0.6rem', fontSize: '0.8rem', width: 148 }} />
       </div>
       <div className="form-group" style={{ margin: 0 }}>
         <label className="form-label" style={{ fontSize: '0.68rem' }}>To</label>
-        <input type="date" className="form-input" value={dateTo} onChange={e => setDateTo(e.target.value)}
+        <input type="date" className="form-input" value={dateTo}
+          onChange={e => { setDateTo(e.target.value); load(tab, { to: e.target.value || undefined }); }}
           style={{ padding: '0.32rem 0.6rem', fontSize: '0.8rem', width: 148 }} />
       </div>
-      <button className="btn btn-primary btn-sm" onClick={handleApply}>Apply</button>
-      {(dateFrom || dateTo) && (
-        <button className="btn btn-secondary btn-sm" onClick={handleClear}>Clear</button>
-      )}
     </div>
   );
+
+  const VehicleSearch = () => {
+    const filtered = vehicleList.filter(v => {
+      if (!vehicleSearch) return true;
+      const q = vehicleSearch.toLowerCase();
+      return v.name.toLowerCase().includes(q) || v.plate.toLowerCase().includes(q);
+    }).slice(0, 8);
+
+    return (
+      <div style={{ position: 'relative' }}>
+        <div className="form-group" style={{ margin: 0 }}>
+          <label className="form-label" style={{ fontSize: '0.68rem' }}>Vehicle</label>
+          <input
+            type="text"
+            className="form-input"
+            placeholder="Search vehicle…"
+            value={vehicleSearch}
+            onChange={e => {
+              setVehicleSearch(e.target.value);
+              if (!e.target.value) setVehicleId('');
+              setVehicleOpen(true);
+            }}
+            onFocus={() => setVehicleOpen(true)}
+            onBlur={() => setTimeout(() => setVehicleOpen(false), 150)}
+            style={{ padding: '0.32rem 0.6rem', fontSize: '0.8rem', width: 180 }}
+          />
+        </div>
+        {vehicleOpen && filtered.length > 0 && (
+          <div style={{
+            position: 'absolute', top: '100%', left: 0, zIndex: 100,
+            background: 'var(--bg-card)', border: '1px solid var(--border-subtle)',
+            borderRadius: 8, marginTop: 4, minWidth: 200, maxHeight: 200, overflowY: 'auto',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+          }}>
+            {filtered.map(v => (
+              <button
+                key={v.id}
+                onMouseDown={() => {
+                  setVehicleId(v.id);
+                  setVehicleSearch(v.plate ? `${v.name} · ${v.plate}` : v.name);
+                  setVehicleOpen(false);
+                  load(tab, { vehicleId: v.id });
+                }}
+                style={{
+                  display: 'block', width: '100%', textAlign: 'left',
+                  padding: '0.5rem 0.75rem', background: 'none', border: 'none',
+                  cursor: 'pointer', fontSize: '0.82rem', color: 'var(--text-primary)',
+                }}
+              >
+                <div style={{ fontWeight: 600 }}>{v.name}</div>
+                {v.plate && (
+                  <div style={{ color: 'var(--text-muted)', fontSize: '0.72rem', marginTop: 1 }}>
+                    {v.plate}
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
@@ -160,13 +232,28 @@ export default function ReportsPage() {
         <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any }}>
           <div className="tabs" style={{ whiteSpace: 'nowrap' }}>
             {TABS.map(t => (
-              <button key={t.key} className={`tab ${tab === t.key ? 'active' : ''}`} onClick={() => setTab(t.key)}>
+              <button key={t.key} className={`tab ${tab === t.key ? 'active' : ''}`} onClick={() => handleTabChange(t.key)}>
                 {t.label}
               </button>
             ))}
           </div>
         </div>
-        <DateFilter />
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
+          <DateFilter />
+          <VehicleSearch />
+          {(dateFrom || dateTo) && (
+            <button className="btn btn-secondary btn-sm" onClick={handleClear} style={{ alignSelf: 'flex-end' }}>Clear dates</button>
+          )}
+          {vehicleId && (
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={() => { setVehicleSearch(''); setVehicleId(''); load(tab, { vehicleId: undefined }); }}
+              style={{ alignSelf: 'flex-end' }}
+            >
+              Clear vehicle
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Active filter indicator */}
@@ -174,6 +261,12 @@ export default function ReportsPage() {
         <div style={{ fontSize: '0.75rem', color: 'var(--gold)', display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--gold)', display: 'inline-block' }} />
           Filtered: {dateFrom ? fmtDate(dateFrom) : 'start'} → {dateTo ? fmtDate(dateTo) : 'now'}
+        </div>
+      )}
+      {vehicleId && (
+        <div style={{ fontSize: '0.75rem', color: 'var(--gold)', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--gold)', display: 'inline-block' }} />
+          Vehicle: {vehicleSearch}
         </div>
       )}
 
@@ -488,6 +581,7 @@ export default function ReportsPage() {
                   <th style={{ textAlign: 'right' }}>Days</th>
                   <th style={{ textAlign: 'right' }}>Total KM</th>
                   <th style={{ textAlign: 'right' }}>Admin Income</th>
+                  <th style={{ textAlign: 'right' }}>Payable to Owner</th>
                 </tr>
               </thead>
               <tbody>
@@ -509,14 +603,18 @@ export default function ReportsPage() {
                       {v.totalBookings > 0 ? (
                         <span style={{ fontWeight: 700, color: v.isOutsourced ? '#3b82f6' : 'var(--gold)' }}>
                           {fmtMoney(v.adminIncome)}
-                          {v.isOutsourced && <div style={{ fontSize: '0.7rem', fontWeight: 400, color: 'var(--text-muted)' }}>commission only</div>}
                         </span>
+                      ) : <span style={{ color: 'var(--text-muted)' }}>—</span>}
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      {v.isOutsourced && v.totalBookings > 0 ? (
+                        <span style={{ fontWeight: 700, color: '#ef4444' }}>{fmtMoney(v.netToOwner)}</span>
                       ) : <span style={{ color: 'var(--text-muted)' }}>—</span>}
                     </td>
                   </tr>
                 ))}
                 {vehiclesSorted.length === 0 && (
-                  <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>No vehicles found</td></tr>
+                  <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>No vehicles found</td></tr>
                 )}
               </tbody>
             </table>
@@ -540,13 +638,12 @@ export default function ReportsPage() {
                   <StatLine label="Days" value={String(v.daysRented)} />
                   <StatLine label="KM" value={(v.totalKm || 0).toLocaleString()} />
                 </div>
-                <div style={{ paddingTop: 6, borderTop: '1px solid var(--border-subtle)' }}>
-                  <div style={{ color: 'var(--text-muted)', fontSize: '0.68rem', textTransform: 'uppercase', marginBottom: 2 }}>Admin Income</div>
+                <div style={{ display: 'grid', gridTemplateColumns: v.isOutsourced ? '1fr 1fr' : '1fr', gap: 10, paddingTop: 6, borderTop: '1px solid var(--border-subtle)' }}>
                   {v.totalBookings > 0 ? (
-                    <div style={{ fontWeight: 700, color: v.isOutsourced ? '#3b82f6' : 'var(--gold)', fontSize: '0.95rem' }}>
-                      {fmtMoney(v.adminIncome)}
-                      {v.isOutsourced && <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 400 }}> (commission only)</span>}
-                    </div>
+                    <>
+                      <StatLine label="Admin Income" value={fmtMoney(v.adminIncome)} color={v.isOutsourced ? '#3b82f6' : 'var(--gold)'} />
+                      {v.isOutsourced && <StatLine label="Payable to Owner" value={fmtMoney(v.netToOwner)} color="#ef4444" />}
+                    </>
                   ) : <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>No bookings yet</span>}
                 </div>
               </div>

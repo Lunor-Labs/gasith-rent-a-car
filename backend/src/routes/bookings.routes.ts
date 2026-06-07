@@ -54,6 +54,39 @@ router.get('/stats/dashboard', authMiddleware, async (req, res) => {
 // GET revenue stats — must be before /:id to avoid route conflict
 router.get('/stats/revenue', authMiddleware, async (req, res) => {
   try {
+    const { range } = req.query;
+
+    if (range === '7d') {
+      const from = new Date();
+      from.setDate(from.getDate() - 6);
+      const fromStr = from.toISOString().slice(0, 10);
+
+      const { data, error } = await supabase
+        .from('bookings')
+        .select('end_date, final_amount, commission_amount, is_outsourced')
+        .eq('status', 'completed')
+        .gte('end_date', fromStr);
+
+      if (error) throw error;
+
+      const days: Record<string, { period: string; totalRevenue: number; totalBookings: number }> = {};
+      for (let i = 0; i < 7; i++) {
+        const d = new Date();
+        d.setDate(d.getDate() - (6 - i));
+        const s = d.toISOString().slice(0, 10);
+        days[s] = { period: s, totalRevenue: 0, totalBookings: 0 };
+      }
+      for (const b of data || []) {
+        const s = (b.end_date as string).slice(0, 10);
+        if (days[s]) {
+          const income = b.is_outsourced ? (b.commission_amount || 0) : (b.final_amount || 0);
+          days[s].totalRevenue += income;
+          days[s].totalBookings++;
+        }
+      }
+      return res.json(Object.values(days));
+    }
+
     const { data, error } = await supabase
       .from('revenue')
       .select('*')

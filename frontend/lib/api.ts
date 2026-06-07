@@ -42,7 +42,7 @@ export const completeBooking = (id: string, data: any) => API.put(`/bookings/${i
 export const updateBooking = (id: string, data: any) => API.put(`/bookings/${id}`, data);
 export const deleteBooking = (id: string) => API.delete(`/bookings/${id}`);
 export const getDashboardStats = () => API.get('/bookings/stats/dashboard');
-export const getRevenueStats = () => API.get('/bookings/stats/revenue');
+export const getRevenueStats = (params?: { range?: string }) => API.get('/bookings/stats/revenue', { params });
 
 // ─── Invoices ────────────────────────────────────────────────────────────────
 export const getInvoices = () => API.get('/invoices');
@@ -55,9 +55,14 @@ export const updatePricingConfig = (data: { firstDayFreeKm: number; subsequentDa
   API.put('/pricing-config', data);
 
 // ─── Reports ──────────────────────────────────────────────────────────────────
-type DateRange = { from?: string; to?: string };
-export const getReportFinancial    = (params?: DateRange) => API.get('/reports/financial',    { params });
-export const getReportCommissions  = (params?: DateRange) => API.get('/reports/commissions',  { params });
-export const getReportBookings     = (params?: DateRange) => API.get('/reports/bookings',     { params });
-export const getReportVehicles     = (params?: DateRange) => API.get('/reports/vehicles',     { params });
+type ReportParams = { from?: string; to?: string; vehicleId?: string };
+export const getReportFinancial    = (params?: ReportParams) => API.get('/reports/financial',    { params });
+export const getReportCommissions  = (params?: ReportParams) => API.get('/reports/commissions',  { params });
+export const getReportBookings     = (params?: ReportParams) => API.get('/reports/bookings',     { params });
+export const getReportVehicles     = (params?: ReportParams) => API.get('/reports/vehicles',     { params });
 export const toggleCommissionPaid  = (bookingId: string)  => API.patch(`/reports/commissions/${bookingId}/toggle-paid`);
+
+// ─── Tasks ───────────────────────────────────────────────────────────────────
+export const getTasks   = ()                                                        => API.get('/tasks');
+export const createTask = (data: { title: string; tag: string; tagLabel: string }) => API.post('/tasks', data);
+export const toggleTask = (id: string)                                              => API.patch(`/tasks/${id}`);

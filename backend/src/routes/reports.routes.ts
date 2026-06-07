@@ -7,7 +7,7 @@ const router = Router();
 // GET /reports/financial — monthly income breakdown, optionally filtered by date range
 router.get('/financial', authMiddleware, async (req, res) => {
   try {
-    const { from, to } = req.query;
+    const { from, to, vehicleId } = req.query;
 
     let query = supabase
       .from('bookings')
@@ -15,8 +15,9 @@ router.get('/financial', authMiddleware, async (req, res) => {
       .eq('status', 'completed')
       .order('end_date', { ascending: false });
 
-    if (from) query = query.gte('end_date', from as string);
-    if (to)   query = query.lte('end_date', `${to}T23:59:59`);
+    if (from)      query = query.gte('end_date', from as string);
+    if (to)        query = query.lte('end_date', `${to}T23:59:59`);
+    if (vehicleId) query = query.eq('vehicle_id', vehicleId as string);
 
     const { data: bookings, error } = await query;
     if (error) throw error;
@@ -61,7 +62,7 @@ router.get('/financial', authMiddleware, async (req, res) => {
 // GET /reports/commissions — outsourced bookings with commission detail and paid status
 router.get('/commissions', authMiddleware, async (req, res) => {
   try {
-    const { from, to } = req.query;
+    const { from, to, vehicleId } = req.query;
 
     let query = supabase
       .from('bookings')
@@ -70,8 +71,9 @@ router.get('/commissions', authMiddleware, async (req, res) => {
       .eq('is_outsourced', true)
       .order('end_date', { ascending: false });
 
-    if (from) query = query.gte('end_date', from as string);
-    if (to)   query = query.lte('end_date', `${to}T23:59:59`);
+    if (from)      query = query.gte('end_date', from as string);
+    if (to)        query = query.lte('end_date', `${to}T23:59:59`);
+    if (vehicleId) query = query.eq('vehicle_id', vehicleId as string);
 
     const { data, error } = await query;
     if (error) throw error;
@@ -122,7 +124,7 @@ router.patch('/commissions/:id/toggle-paid', authMiddleware, async (req, res) =>
 // GET /reports/bookings — all completed bookings, filterable by date range
 router.get('/bookings', authMiddleware, async (req, res) => {
   try {
-    const { from, to } = req.query;
+    const { from, to, vehicleId } = req.query;
 
     let query = supabase
       .from('bookings')
@@ -130,8 +132,9 @@ router.get('/bookings', authMiddleware, async (req, res) => {
       .eq('status', 'completed')
       .order('end_date', { ascending: false });
 
-    if (from) query = query.gte('end_date', from as string);
-    if (to)   query = query.lte('end_date', `${to}T23:59:59`);
+    if (from)      query = query.gte('end_date', from as string);
+    if (to)        query = query.lte('end_date', `${to}T23:59:59`);
+    if (vehicleId) query = query.eq('vehicle_id', vehicleId as string);
 
     const { data, error } = await query;
     if (error) throw error;
@@ -159,13 +162,16 @@ router.get('/bookings', authMiddleware, async (req, res) => {
 // GET /reports/vehicles — per-vehicle utilization and income stats, optionally filtered by date range
 router.get('/vehicles', authMiddleware, async (req, res) => {
   try {
-    const { from, to } = req.query;
+    const { from, to, vehicleId } = req.query;
 
-    const { data: vehicles, error: vErr } = await supabase
+    let vQuery = supabase
       .from('vehicles')
       .select('id, name, plate, is_outsourced')
       .order('name');
 
+    if (vehicleId) vQuery = vQuery.eq('id', vehicleId as string);
+
+    const { data: vehicles, error: vErr } = await vQuery;
     if (vErr) throw vErr;
 
     let bQuery = supabase
@@ -173,8 +179,9 @@ router.get('/vehicles', authMiddleware, async (req, res) => {
       .select('vehicle_id, final_amount, commission_amount, total_km, is_outsourced, start_date, end_date')
       .eq('status', 'completed');
 
-    if (from) bQuery = bQuery.gte('end_date', from as string);
-    if (to)   bQuery = bQuery.lte('end_date', `${to}T23:59:59`);
+    if (from)      bQuery = bQuery.gte('end_date', from as string);
+    if (to)        bQuery = bQuery.lte('end_date', `${to}T23:59:59`);
+    if (vehicleId) bQuery = bQuery.eq('vehicle_id', vehicleId as string);
 
     const { data: bookings, error: bErr } = await bQuery;
     if (bErr) throw bErr;
@@ -204,6 +211,7 @@ router.get('/vehicles', authMiddleware, async (req, res) => {
         totalKm,
         totalRevenue,
         adminIncome,
+        netToOwner: v.is_outsourced ? Math.max(0, totalRevenue - adminIncome) : 0,
       };
     });
 
