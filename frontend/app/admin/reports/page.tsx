@@ -5,7 +5,7 @@ import {
 } from 'recharts';
 import {
   getReportFinancial, getReportCommissions, getReportBookings, getReportVehicles,
-  toggleCommissionPaid,
+  toggleCommissionPaid, getVehicles,
 } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { Check, Clock } from 'lucide-react';
@@ -53,19 +53,26 @@ export default function ReportsPage() {
   const [bookings,    setBookings]    = useState<any[]>([]);
   const [vehicles,    setVehicles]    = useState<any[]>([]);
 
+  // Vehicle filter
+  const [vehicleList,   setVehicleList]   = useState<{ id: string; name: string; plate: string }[]>([]);
+  const [vehicleSearch, setVehicleSearch] = useState('');
+  const [vehicleId,     setVehicleId]     = useState('');
+  const [vehicleOpen,   setVehicleOpen]   = useState(false);
+
   // Shared date range
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo,   setDateTo]   = useState('');
 
-  const dateParams = () => ({
-    from: dateFrom || undefined,
-    to:   dateTo   || undefined,
+  const reportParams = () => ({
+    from:      dateFrom  || undefined,
+    to:        dateTo    || undefined,
+    vehicleId: vehicleId || undefined,
   });
 
   const load = async (t: Tab) => {
     setLoading(true);
     try {
-      const p = dateParams();
+      const p = reportParams();
       if (t === 'financial')   { const r = await getReportFinancial(p);   setFinancial(r.data);   }
       if (t === 'commissions') { const r = await getReportCommissions(p);  setCommissions(r.data); }
       if (t === 'bookings')    { const r = await getReportBookings(p);     setBookings(r.data);    }
@@ -76,12 +83,17 @@ export default function ReportsPage() {
 
   useEffect(() => { load(tab); }, [tab]);
 
+  useEffect(() => {
+    getVehicles().then(r =>
+      setVehicleList((r.data || []).map((v: any) => ({ id: v.id, name: v.name, plate: v.plate || '' })))
+    );
+  }, []);
+
   const handleApply = () => load(tab);
   const handleClear = () => {
     setDateFrom(''); setDateTo('');
-    // load with empty params after state clears
     setLoading(true);
-    const p = { from: undefined, to: undefined };
+    const p = { from: undefined as undefined, to: undefined as undefined, vehicleId: vehicleId || undefined };
     const loaders: Record<Tab, () => Promise<any>> = {
       financial:   () => getReportFinancial(p).then(r => setFinancial(r.data)),
       commissions: () => getReportCommissions(p).then(r => setCommissions(r.data)),
@@ -89,6 +101,12 @@ export default function ReportsPage() {
       vehicles:    () => getReportVehicles(p).then(r => setVehicles(r.data)),
     };
     loaders[tab]().catch(() => toast.error('Failed')).finally(() => setLoading(false));
+  };
+
+  const handleTabChange = (t: Tab) => {
+    setVehicleSearch('');
+    setVehicleId('');
+    setTab(t);
   };
 
   const handleTogglePaid = async (bookingId: string) => {
@@ -147,6 +165,67 @@ export default function ReportsPage() {
     </div>
   );
 
+  const VehicleSearch = () => {
+    const filtered = vehicleList.filter(v => {
+      if (!vehicleSearch) return true;
+      const q = vehicleSearch.toLowerCase();
+      return v.name.toLowerCase().includes(q) || v.plate.toLowerCase().includes(q);
+    }).slice(0, 8);
+
+    return (
+      <div style={{ position: 'relative' }}>
+        <div className="form-group" style={{ margin: 0 }}>
+          <label className="form-label" style={{ fontSize: '0.68rem' }}>Vehicle</label>
+          <input
+            type="text"
+            className="form-input"
+            placeholder="Search vehicle…"
+            value={vehicleSearch}
+            onChange={e => {
+              setVehicleSearch(e.target.value);
+              if (!e.target.value) setVehicleId('');
+              setVehicleOpen(true);
+            }}
+            onFocus={() => setVehicleOpen(true)}
+            onBlur={() => setTimeout(() => setVehicleOpen(false), 150)}
+            style={{ padding: '0.32rem 0.6rem', fontSize: '0.8rem', width: 180 }}
+          />
+        </div>
+        {vehicleOpen && filtered.length > 0 && (
+          <div style={{
+            position: 'absolute', top: '100%', left: 0, zIndex: 100,
+            background: 'var(--bg-card)', border: '1px solid var(--border-subtle)',
+            borderRadius: 8, marginTop: 4, minWidth: 200, maxHeight: 200, overflowY: 'auto',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+          }}>
+            {filtered.map(v => (
+              <button
+                key={v.id}
+                onMouseDown={() => {
+                  setVehicleId(v.id);
+                  setVehicleSearch(v.name);
+                  setVehicleOpen(false);
+                }}
+                style={{
+                  display: 'block', width: '100%', textAlign: 'left',
+                  padding: '0.5rem 0.75rem', background: 'none', border: 'none',
+                  cursor: 'pointer', fontSize: '0.82rem', color: 'var(--text-primary)',
+                }}
+              >
+                <span style={{ fontWeight: 600 }}>{v.name}</span>
+                {v.plate && (
+                  <span style={{ color: 'var(--text-muted)', marginLeft: 8, fontSize: '0.75rem' }}>
+                    {v.plate}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
       {/* Header */}
@@ -160,13 +239,25 @@ export default function ReportsPage() {
         <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any }}>
           <div className="tabs" style={{ whiteSpace: 'nowrap' }}>
             {TABS.map(t => (
-              <button key={t.key} className={`tab ${tab === t.key ? 'active' : ''}`} onClick={() => setTab(t.key)}>
+              <button key={t.key} className={`tab ${tab === t.key ? 'active' : ''}`} onClick={() => handleTabChange(t.key)}>
                 {t.label}
               </button>
             ))}
           </div>
         </div>
-        <DateFilter />
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
+          <DateFilter />
+          <VehicleSearch />
+          {vehicleId && (
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={() => { setVehicleSearch(''); setVehicleId(''); load(tab); }}
+              style={{ alignSelf: 'flex-end' }}
+            >
+              Clear vehicle
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Active filter indicator */}
@@ -174,6 +265,12 @@ export default function ReportsPage() {
         <div style={{ fontSize: '0.75rem', color: 'var(--gold)', display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--gold)', display: 'inline-block' }} />
           Filtered: {dateFrom ? fmtDate(dateFrom) : 'start'} → {dateTo ? fmtDate(dateTo) : 'now'}
+        </div>
+      )}
+      {vehicleId && (
+        <div style={{ fontSize: '0.75rem', color: 'var(--gold)', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--gold)', display: 'inline-block' }} />
+          Vehicle: {vehicleSearch}
         </div>
       )}
 
