@@ -59,10 +59,9 @@ export default function ReportsPage() {
   const [vehicleId,     setVehicleId]     = useState('');
   const [vehicleOpen,   setVehicleOpen]   = useState(false);
 
-  // Shared date range — default to current month
-  const _now = new Date();
-  const [dateFrom, setDateFrom] = useState(`${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, '0')}-01`);
-  const [dateTo,   setDateTo]   = useState(_now.toISOString().slice(0, 10));
+  // Shared date range
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo,   setDateTo]   = useState('');
 
   const reportParams = () => ({
     from:      dateFrom  || undefined,
