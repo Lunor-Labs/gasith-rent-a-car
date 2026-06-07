@@ -59,9 +59,10 @@ export default function ReportsPage() {
   const [vehicleId,     setVehicleId]     = useState('');
   const [vehicleOpen,   setVehicleOpen]   = useState(false);
 
-  // Shared date range
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo,   setDateTo]   = useState('');
+  // Shared date range — default to current month
+  const _now = new Date();
+  const [dateFrom, setDateFrom] = useState(`${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, '0')}-01`);
+  const [dateTo,   setDateTo]   = useState(_now.toISOString().slice(0, 10));
 
   const reportParams = () => ({
     from:      dateFrom  || undefined,
@@ -69,10 +70,10 @@ export default function ReportsPage() {
     vehicleId: vehicleId || undefined,
   });
 
-  const load = async (t: Tab) => {
+  const load = async (t: Tab, overrides?: { from?: string; to?: string; vehicleId?: string }) => {
     setLoading(true);
     try {
-      const p = reportParams();
+      const p = { ...reportParams(), ...overrides };
       if (t === 'financial')   { const r = await getReportFinancial(p);   setFinancial(r.data);   }
       if (t === 'commissions') { const r = await getReportCommissions(p);  setCommissions(r.data); }
       if (t === 'bookings')    { const r = await getReportBookings(p);     setBookings(r.data);    }
@@ -81,7 +82,8 @@ export default function ReportsPage() {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { load(tab); }, [tab]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load(tab); }, []);
 
   useEffect(() => {
     getVehicles().then(r =>
@@ -89,24 +91,17 @@ export default function ReportsPage() {
     );
   }, []);
 
-  const handleApply = () => load(tab);
   const handleClear = () => {
-    setDateFrom(''); setDateTo('');
-    setLoading(true);
-    const p = { from: undefined as undefined, to: undefined as undefined, vehicleId: vehicleId || undefined };
-    const loaders: Record<Tab, () => Promise<any>> = {
-      financial:   () => getReportFinancial(p).then(r => setFinancial(r.data)),
-      commissions: () => getReportCommissions(p).then(r => setCommissions(r.data)),
-      bookings:    () => getReportBookings(p).then(r => setBookings(r.data)),
-      vehicles:    () => getReportVehicles(p).then(r => setVehicles(r.data)),
-    };
-    loaders[tab]().catch(() => toast.error('Failed')).finally(() => setLoading(false));
+    setDateFrom('');
+    setDateTo('');
+    load(tab, { from: undefined, to: undefined });
   };
 
   const handleTabChange = (t: Tab) => {
     setVehicleSearch('');
     setVehicleId('');
     setTab(t);
+    load(t, { vehicleId: undefined });
   };
 
   const handleTogglePaid = async (bookingId: string) => {
@@ -150,12 +145,14 @@ export default function ReportsPage() {
     <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
       <div className="form-group" style={{ margin: 0 }}>
         <label className="form-label" style={{ fontSize: '0.68rem' }}>From</label>
-        <input type="date" className="form-input" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+        <input type="date" className="form-input" value={dateFrom}
+          onChange={e => { setDateFrom(e.target.value); load(tab, { from: e.target.value || undefined }); }}
           style={{ padding: '0.32rem 0.6rem', fontSize: '0.8rem', width: 148 }} />
       </div>
       <div className="form-group" style={{ margin: 0 }}>
         <label className="form-label" style={{ fontSize: '0.68rem' }}>To</label>
-        <input type="date" className="form-input" value={dateTo} onChange={e => setDateTo(e.target.value)}
+        <input type="date" className="form-input" value={dateTo}
+          onChange={e => { setDateTo(e.target.value); load(tab, { to: e.target.value || undefined }); }}
           style={{ padding: '0.32rem 0.6rem', fontSize: '0.8rem', width: 148 }} />
       </div>
     </div>
@@ -199,8 +196,9 @@ export default function ReportsPage() {
                 key={v.id}
                 onMouseDown={() => {
                   setVehicleId(v.id);
-                  setVehicleSearch(v.name);
+                  setVehicleSearch(v.plate ? `${v.name} · ${v.plate}` : v.name);
                   setVehicleOpen(false);
+                  load(tab, { vehicleId: v.id });
                 }}
                 style={{
                   display: 'block', width: '100%', textAlign: 'left',
@@ -208,11 +206,11 @@ export default function ReportsPage() {
                   cursor: 'pointer', fontSize: '0.82rem', color: 'var(--text-primary)',
                 }}
               >
-                <span style={{ fontWeight: 600 }}>{v.name}</span>
+                <div style={{ fontWeight: 600 }}>{v.name}</div>
                 {v.plate && (
-                  <span style={{ color: 'var(--text-muted)', marginLeft: 8, fontSize: '0.75rem' }}>
+                  <div style={{ color: 'var(--text-muted)', fontSize: '0.72rem', marginTop: 1 }}>
                     {v.plate}
-                  </span>
+                  </div>
                 )}
               </button>
             ))}
@@ -244,14 +242,13 @@ export default function ReportsPage() {
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
           <DateFilter />
           <VehicleSearch />
-          <button className="btn btn-primary btn-sm" onClick={handleApply} style={{ alignSelf: 'flex-end' }}>Apply</button>
           {(dateFrom || dateTo) && (
             <button className="btn btn-secondary btn-sm" onClick={handleClear} style={{ alignSelf: 'flex-end' }}>Clear dates</button>
           )}
           {vehicleId && (
             <button
               className="btn btn-secondary btn-sm"
-              onClick={() => { setVehicleSearch(''); setVehicleId(''); load(tab); }}
+              onClick={() => { setVehicleSearch(''); setVehicleId(''); load(tab, { vehicleId: undefined }); }}
               style={{ alignSelf: 'flex-end' }}
             >
               Clear vehicle
