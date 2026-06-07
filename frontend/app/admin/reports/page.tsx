@@ -22,6 +22,73 @@ const fmtMonth = (m: string) => {
   return new Date(Number(y), Number(mo) - 1).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
 };
 
+type Vehicle = { id: string; name: string; plate: string };
+
+function VehicleSearch({ vehicleList, vehicleSearch, vehicleOpen, setVehicleSearch, setVehicleId, setVehicleOpen, onSelect }: {
+  vehicleList: Vehicle[];
+  vehicleSearch: string;
+  vehicleOpen: boolean;
+  setVehicleSearch: (v: string) => void;
+  setVehicleId: (id: string) => void;
+  setVehicleOpen: (o: boolean) => void;
+  onSelect: (v: Vehicle) => void;
+}) {
+  const filtered = vehicleList.filter(v => {
+    if (!vehicleSearch) return true;
+    const q = vehicleSearch.toLowerCase();
+    return v.name.toLowerCase().includes(q) || v.plate.toLowerCase().includes(q);
+  }).slice(0, 8);
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <div className="form-group" style={{ margin: 0 }}>
+        <label className="form-label" style={{ fontSize: '0.68rem' }}>Vehicle</label>
+        <input
+          type="text"
+          className="form-input"
+          placeholder="Search vehicle…"
+          value={vehicleSearch}
+          onChange={e => {
+            setVehicleSearch(e.target.value);
+            if (!e.target.value) setVehicleId('');
+            setVehicleOpen(true);
+          }}
+          onFocus={() => setVehicleOpen(true)}
+          onBlur={() => setTimeout(() => setVehicleOpen(false), 150)}
+          style={{ padding: '0.32rem 0.6rem', fontSize: '0.8rem', width: 180 }}
+        />
+      </div>
+      {vehicleOpen && filtered.length > 0 && (
+        <div style={{
+          position: 'absolute', top: '100%', left: 0, zIndex: 100,
+          background: 'var(--bg-card)', border: '1px solid var(--border-subtle)',
+          borderRadius: 8, marginTop: 4, minWidth: 200, maxHeight: 200, overflowY: 'auto',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+        }}>
+          {filtered.map(v => (
+            <button
+              key={v.id}
+              onMouseDown={() => onSelect(v)}
+              style={{
+                display: 'block', width: '100%', textAlign: 'left',
+                padding: '0.5rem 0.75rem', background: 'none', border: 'none',
+                cursor: 'pointer', fontSize: '0.82rem', color: 'var(--text-primary)',
+              }}
+            >
+              <div style={{ fontWeight: 600 }}>{v.name}</div>
+              {v.plate && (
+                <div style={{ color: 'var(--text-muted)', fontSize: '0.72rem', marginTop: 1 }}>
+                  {v.plate}
+                </div>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const StatLine = ({ label, value, color }: { label: string; value: string; color?: string }) => (
   <div>
     <div style={{ color: 'var(--text-muted)', fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>{label}</div>
@@ -157,67 +224,6 @@ export default function ReportsPage() {
     </div>
   );
 
-  const VehicleSearch = () => {
-    const filtered = vehicleList.filter(v => {
-      if (!vehicleSearch) return true;
-      const q = vehicleSearch.toLowerCase();
-      return v.name.toLowerCase().includes(q) || v.plate.toLowerCase().includes(q);
-    }).slice(0, 8);
-
-    return (
-      <div style={{ position: 'relative' }}>
-        <div className="form-group" style={{ margin: 0 }}>
-          <label className="form-label" style={{ fontSize: '0.68rem' }}>Vehicle</label>
-          <input
-            type="text"
-            className="form-input"
-            placeholder="Search vehicle…"
-            value={vehicleSearch}
-            onChange={e => {
-              setVehicleSearch(e.target.value);
-              if (!e.target.value) setVehicleId('');
-              setVehicleOpen(true);
-            }}
-            onFocus={() => setVehicleOpen(true)}
-            onBlur={() => setTimeout(() => setVehicleOpen(false), 150)}
-            style={{ padding: '0.32rem 0.6rem', fontSize: '0.8rem', width: 180 }}
-          />
-        </div>
-        {vehicleOpen && filtered.length > 0 && (
-          <div style={{
-            position: 'absolute', top: '100%', left: 0, zIndex: 100,
-            background: 'var(--bg-card)', border: '1px solid var(--border-subtle)',
-            borderRadius: 8, marginTop: 4, minWidth: 200, maxHeight: 200, overflowY: 'auto',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
-          }}>
-            {filtered.map(v => (
-              <button
-                key={v.id}
-                onMouseDown={() => {
-                  setVehicleId(v.id);
-                  setVehicleSearch(v.plate ? `${v.name} · ${v.plate}` : v.name);
-                  setVehicleOpen(false);
-                  load(tab, { vehicleId: v.id });
-                }}
-                style={{
-                  display: 'block', width: '100%', textAlign: 'left',
-                  padding: '0.5rem 0.75rem', background: 'none', border: 'none',
-                  cursor: 'pointer', fontSize: '0.82rem', color: 'var(--text-primary)',
-                }}
-              >
-                <div style={{ fontWeight: 600 }}>{v.name}</div>
-                {v.plate && (
-                  <div style={{ color: 'var(--text-muted)', fontSize: '0.72rem', marginTop: 1 }}>
-                    {v.plate}
-                  </div>
-                )}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  };
 
   return (
     <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
@@ -240,7 +246,20 @@ export default function ReportsPage() {
         </div>
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
           <DateFilter />
-          <VehicleSearch />
+          <VehicleSearch
+            vehicleList={vehicleList}
+            vehicleSearch={vehicleSearch}
+            vehicleOpen={vehicleOpen}
+            setVehicleSearch={setVehicleSearch}
+            setVehicleId={setVehicleId}
+            setVehicleOpen={setVehicleOpen}
+            onSelect={v => {
+              setVehicleId(v.id);
+              setVehicleSearch(v.plate ? `${v.name} · ${v.plate}` : v.name);
+              setVehicleOpen(false);
+              load(tab, { vehicleId: v.id });
+            }}
+          />
           {(dateFrom || dateTo) && (
             <button className="btn btn-secondary btn-sm" onClick={handleClear} style={{ alignSelf: 'flex-end' }}>Clear dates</button>
           )}
