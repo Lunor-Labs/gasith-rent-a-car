@@ -80,12 +80,24 @@ function StatusPill({ status }: { status: string }) {
   );
 }
 
+// ─── Month formatters ─────────────────────────────────────────────────────────
+function fmtMonthShort(m: string) {
+  const [y, mo] = m.split('-');
+  const d = new Date(Number(y), Number(mo) - 1);
+  const short = d.toLocaleDateString('en-GB', { month: 'short' });
+  return mo === '01' ? `${short} '${String(y).slice(2)}` : short;
+}
+function fmtMonthFull(m: string) {
+  const [y, mo] = m.split('-');
+  return new Date(Number(y), Number(mo) - 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+}
+
 // ─── Revenue chart tooltip ────────────────────────────────────────────────────
 const RevTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   return (
     <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: 10, padding: '0.6rem 0.85rem', fontSize: '0.77rem' }}>
-      <div style={{ color: 'var(--text-muted)', marginBottom: 4 }}>{label}</div>
+      <div style={{ color: 'var(--text-muted)', marginBottom: 4 }}>{fmtMonthFull(label)}</div>
       <div className="mono" style={{ fontWeight: 600, color: 'var(--gold)' }}>
         LKR {payload[0]?.value?.toLocaleString()}
       </div>
@@ -362,7 +374,7 @@ export default function DashboardPage() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 4" stroke="var(--border-subtle)" vertical={false} />
-                  <XAxis dataKey="month" tick={{ fontSize: 10, fill: 'var(--text-muted)', fontFamily: 'var(--font-geist-mono)' }} axisLine={false} tickLine={false} />
+                  <XAxis dataKey="month" tickFormatter={fmtMonthShort} tick={{ fontSize: 10, fill: 'var(--text-muted)', fontFamily: 'var(--font-geist-mono)' }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 10, fill: 'var(--text-muted)', fontFamily: 'var(--font-geist-mono)' }} axisLine={false} tickLine={false} tickFormatter={(v) => v === 0 ? '0' : `${v / 1000}K`} />
                   <Tooltip content={<RevTooltip />} />
                   <Area type="natural" dataKey="totalRevenue" stroke="var(--gold)" strokeWidth={2} fill="url(#rvGrad)" dot={false} activeDot={{ r: 4, fill: 'var(--gold)' }} strokeLinecap="round" strokeLinejoin="round" />
