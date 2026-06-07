@@ -176,7 +176,7 @@ export default function DashboardPage() {
   const [vehicles,  setVehicles]  = useState<Vehicle[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading,   setLoading]   = useState(true);
-  const [range,     setRange]     = useState<'7d' | '30d' | '12m'>('12m');
+  const [range,     setRange]     = useState<'3M' | '6M' | '12M'>('12M');
   const [tasks,     setTasks]     = useState(INITIAL_TASKS);
 
   const rawName   = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split('@')[0] || 'Admin';
@@ -199,7 +199,7 @@ export default function DashboardPage() {
   }, []);
 
   // ── Derived ───────────────────────────────────────────────────────────────
-  const chartData    = (range === '7d' ? revenue.slice(-3) : range === '30d' ? revenue.slice(-6) : revenue)
+  const chartData    = (range === '3M' ? revenue.slice(-3) : range === '6M' ? revenue.slice(-6) : revenue)
                          .map(r => ({ ...r, target: Math.round(r.totalRevenue * 1.05) }));
   const total12m     = revenue.reduce((s, r) => s + r.totalRevenue, 0);
   const revSparkData = revenue.slice(-7).map(r => r.totalRevenue);
@@ -332,7 +332,7 @@ export default function DashboardPage() {
               </div>
             </div>
             <div className="tabs">
-              {(['7d', '30d', '12m'] as const).map(r => (
+              {(['3M', '6M', '12M'] as const).map(r => (
                 <button key={r} className={`tab ${range === r ? 'active' : ''}`} onClick={() => setRange(r)}>{r}</button>
               ))}
             </div>
@@ -365,8 +365,8 @@ export default function DashboardPage() {
                   <XAxis dataKey="month" tick={{ fontSize: 10, fill: 'var(--text-muted)', fontFamily: 'var(--font-geist-mono)' }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 10, fill: 'var(--text-muted)', fontFamily: 'var(--font-geist-mono)' }} axisLine={false} tickLine={false} tickFormatter={(v) => v === 0 ? '0' : `${v / 1000}K`} />
                   <Tooltip content={<RevTooltip />} />
-                  <Area type="monotone" dataKey="totalRevenue" stroke="var(--gold)" strokeWidth={2} fill="url(#rvGrad)" dot={false} activeDot={{ r: 4, fill: 'var(--gold)' }} strokeLinecap="round" strokeLinejoin="round" />
-                  <Line type="monotone" dataKey="target" stroke="var(--text-muted)" strokeWidth={1.25} strokeDasharray="4 4" strokeOpacity={0.7} dot={false} />
+                  <Area type="natural" dataKey="totalRevenue" stroke="var(--gold)" strokeWidth={2} fill="url(#rvGrad)" dot={false} activeDot={{ r: 4, fill: 'var(--gold)' }} strokeLinecap="round" strokeLinejoin="round" />
+                  <Line type="natural" dataKey="target" stroke="var(--text-muted)" strokeWidth={1.25} strokeDasharray="4 4" strokeOpacity={0.7} dot={false} />
                 </ComposedChart>
               </ResponsiveContainer>
             ) : (
