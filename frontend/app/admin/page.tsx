@@ -105,12 +105,13 @@ function fmtDayFull(d: string) {
 const RevTooltip = ({ active, payload, label, isDaily }: any) => {
   if (!active || !payload?.length) return null;
   const title = isDaily ? fmtDayFull(label) : fmtMonthFull(label);
+  const rev = payload.find((p: any) => p.dataKey === 'totalRevenue');
+  const bk  = payload.find((p: any) => p.dataKey === 'totalBookings');
   return (
     <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: 10, padding: '0.6rem 0.85rem', fontSize: '0.77rem' }}>
       <div style={{ color: 'var(--text-muted)', marginBottom: 4 }}>{title}</div>
-      <div className="mono" style={{ fontWeight: 600, color: 'var(--gold)' }}>
-        LKR {payload[0]?.value?.toLocaleString()}
-      </div>
+      {rev && <div className="mono" style={{ fontWeight: 600, color: 'var(--gold)' }}>LKR {rev.value?.toLocaleString()}</div>}
+      {bk  && <div className="mono" style={{ color: 'var(--text-secondary)', marginTop: 2 }}>{bk.value} booking{bk.value !== 1 ? 's' : ''}</div>}
     </div>
   );
 };
@@ -189,7 +190,7 @@ export default function DashboardPage() {
   const [vehicles,  setVehicles]  = useState<Vehicle[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading,   setLoading]   = useState(true);
-  const [range,     setRange]     = useState<'7D' | '3M' | '6M' | '12M'>('12M');
+  const [range,     setRange]     = useState<'7D' | '3M' | '6M' | '12M'>('7D');
   const [dailyRevenue, setDailyRevenue] = useState<DailyRevenue[]>([]);
   const [tasks,      setTasks]      = useState<Task[]>([]);
   const [addingTask, setAddingTask] = useState(false);
@@ -406,10 +407,11 @@ export default function DashboardPage() {
                   </defs>
                   <CartesianGrid strokeDasharray="3 4" stroke="var(--border-subtle)" vertical={false} />
                   <XAxis dataKey={range === '7D' ? 'period' : 'month'} tickFormatter={range === '7D' ? fmtDayTick : fmtMonthShort} tick={{ fontSize: 10, fill: 'var(--text-muted)', fontFamily: 'var(--font-geist-mono)' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: 'var(--text-muted)', fontFamily: 'var(--font-geist-mono)' }} axisLine={false} tickLine={false} tickFormatter={(v) => v === 0 ? '0' : `${v / 1000}K`} />
+                  <YAxis yAxisId="rev" tick={{ fontSize: 10, fill: 'var(--text-muted)', fontFamily: 'var(--font-geist-mono)' }} axisLine={false} tickLine={false} tickFormatter={(v) => v === 0 ? '0' : `${v / 1000}K`} />
+                  <YAxis yAxisId="bk" orientation="right" tick={{ fontSize: 10, fill: 'var(--text-muted)', fontFamily: 'var(--font-geist-mono)' }} axisLine={false} tickLine={false} allowDecimals={false} />
                   <Tooltip content={<RevTooltip isDaily={range === '7D'} />} />
-                  <Area type="natural" dataKey="totalRevenue" stroke="var(--gold)" strokeWidth={2} fill="url(#rvGrad)" dot={false} activeDot={{ r: 4, fill: 'var(--gold)' }} strokeLinecap="round" strokeLinejoin="round" />
-                  <Line type="natural" dataKey="target" stroke="var(--text-muted)" strokeWidth={1.25} strokeDasharray="4 4" strokeOpacity={0.7} dot={false} />
+                  <Area yAxisId="rev" type="natural" dataKey="totalRevenue" stroke="var(--gold)" strokeWidth={2} fill="url(#rvGrad)" dot={false} activeDot={{ r: 4, fill: 'var(--gold)' }} strokeLinecap="round" strokeLinejoin="round" />
+                  <Line yAxisId="bk" type="natural" dataKey="totalBookings" stroke="#60a5fa" strokeWidth={1.75} dot={false} activeDot={{ r: 4, fill: '#60a5fa' }} strokeLinecap="round" strokeLinejoin="round" />
                 </ComposedChart>
               </ResponsiveContainer>
             ) : (
