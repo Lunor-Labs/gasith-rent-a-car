@@ -581,6 +581,7 @@ export default function ReportsPage() {
                   <th style={{ textAlign: 'right' }}>Days</th>
                   <th style={{ textAlign: 'right' }}>Total KM</th>
                   <th style={{ textAlign: 'right' }}>Admin Income</th>
+                  <th style={{ textAlign: 'right' }}>Payable to Owner</th>
                 </tr>
               </thead>
               <tbody>
@@ -602,14 +603,18 @@ export default function ReportsPage() {
                       {v.totalBookings > 0 ? (
                         <span style={{ fontWeight: 700, color: v.isOutsourced ? '#3b82f6' : 'var(--gold)' }}>
                           {fmtMoney(v.adminIncome)}
-                          {v.isOutsourced && <div style={{ fontSize: '0.7rem', fontWeight: 400, color: 'var(--text-muted)' }}>commission only</div>}
                         </span>
+                      ) : <span style={{ color: 'var(--text-muted)' }}>—</span>}
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      {v.isOutsourced && v.totalBookings > 0 ? (
+                        <span style={{ fontWeight: 700, color: '#ef4444' }}>{fmtMoney(v.netToOwner)}</span>
                       ) : <span style={{ color: 'var(--text-muted)' }}>—</span>}
                     </td>
                   </tr>
                 ))}
                 {vehiclesSorted.length === 0 && (
-                  <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>No vehicles found</td></tr>
+                  <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>No vehicles found</td></tr>
                 )}
               </tbody>
             </table>
@@ -633,13 +638,12 @@ export default function ReportsPage() {
                   <StatLine label="Days" value={String(v.daysRented)} />
                   <StatLine label="KM" value={(v.totalKm || 0).toLocaleString()} />
                 </div>
-                <div style={{ paddingTop: 6, borderTop: '1px solid var(--border-subtle)' }}>
-                  <div style={{ color: 'var(--text-muted)', fontSize: '0.68rem', textTransform: 'uppercase', marginBottom: 2 }}>Admin Income</div>
+                <div style={{ display: 'grid', gridTemplateColumns: v.isOutsourced ? '1fr 1fr' : '1fr', gap: 10, paddingTop: 6, borderTop: '1px solid var(--border-subtle)' }}>
                   {v.totalBookings > 0 ? (
-                    <div style={{ fontWeight: 700, color: v.isOutsourced ? '#3b82f6' : 'var(--gold)', fontSize: '0.95rem' }}>
-                      {fmtMoney(v.adminIncome)}
-                      {v.isOutsourced && <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 400 }}> (commission only)</span>}
-                    </div>
+                    <>
+                      <StatLine label="Admin Income" value={fmtMoney(v.adminIncome)} color={v.isOutsourced ? '#3b82f6' : 'var(--gold)'} />
+                      {v.isOutsourced && <StatLine label="Payable to Owner" value={fmtMoney(v.netToOwner)} color="#ef4444" />}
+                    </>
                   ) : <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>No bookings yet</span>}
                 </div>
               </div>

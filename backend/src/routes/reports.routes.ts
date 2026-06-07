@@ -211,6 +211,7 @@ router.get('/vehicles', authMiddleware, async (req, res) => {
         totalKm,
         totalRevenue,
         adminIncome,
+        netToOwner: v.is_outsourced ? Math.max(0, totalRevenue - adminIncome) : 0,
       };
     });
 
