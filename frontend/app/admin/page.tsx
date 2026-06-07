@@ -237,17 +237,6 @@ export default function DashboardPage() {
   const utilPct      = Math.min(100, Math.round(((stats?.activeBookings ?? 0) / Math.max(1, stats?.totalVehicles ?? 1)) * 100));
 
   const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const weeklyBarData = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(); d.setDate(d.getDate() - (6 - i));
-    return { day: DAYS[d.getDay()], count: 0, dateStr: d.toDateString() };
-  });
-  bookings.forEach(b => {
-    const ts = b.createdAt?._seconds ? new Date(b.createdAt._seconds * 1000) : b.createdAt ? new Date(b.createdAt) : null;
-    if (!ts || isNaN(ts.getTime())) return;
-    weeklyBarData.forEach(e => { if (ts.toDateString() === e.dateStr) e.count++; });
-  });
-  const weeklyTotal = weeklyBarData.reduce((s, d) => s + d.count, 0);
-  const weeklyMax   = Math.max(...weeklyBarData.map(d => d.count), 1);
 
   const revTrend = revenue.length >= 2 ? (() => {
     const curr = revenue[revenue.length - 1]?.totalRevenue || 0;
@@ -363,9 +352,7 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* ── Row 2:1 — Revenue Trend + Weekly Bookings ────────────────────── */}
-      <div className="row-2-1">
-
+      {/* ── Revenue Trend ─────────────────────────────────────────────────── */}
         {/* Revenue Trend */}
         <div className="card" style={{ overflow: 'hidden' }}>
           <div className="card-head">
@@ -392,7 +379,7 @@ export default function DashboardPage() {
             {revTrend && <span className="muted" style={{ fontSize: 12 }}>vs prior period</span>}
             <div className="chart-legend">
               <div className="legend-item"><span className="legend-dot" style={{ background: 'var(--gold)' }} /> Revenue</div>
-              <div className="legend-item"><span className="legend-dot" style={{ background: 'var(--text-muted)', borderRadius: 0, height: 2, width: 12 }} /> Target</div>
+              <div className="legend-item"><span className="legend-dot" style={{ background: '#60a5fa' }} /> Bookings</div>
             </div>
           </div>
           <div style={{ padding: '0 8px 16px' }}>
@@ -419,39 +406,6 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
-
-        {/* Weekly Bookings */}
-        <div className="card" style={{ overflow: 'hidden' }}>
-          <div className="card-head">
-            <div>
-              <div className="card-title">Weekly Bookings</div>
-              <div className="card-sub">Last 7 days</div>
-            </div>
-            <span className="delta pos"><ArrowUp size={11} />22%</span>
-          </div>
-          <div className="chart-stats" style={{ paddingBottom: 8 }}>
-            <div className="chart-stat-main mono">{weeklyTotal}</div>
-            <span className="muted" style={{ fontSize: 12 }}>bookings this week</span>
-          </div>
-          <div className="card-body" style={{ paddingTop: 8 }}>
-            <div className="bars">
-              {weeklyBarData.map((d, idx) => {
-                const isToday = idx === weeklyBarData.length - 1;
-                return (
-                  <div className="bar-col" key={d.day}>
-                    <div
-                      className={`bar ${isToday ? '' : 'muted'}`}
-                      style={{ height: `${Math.max(4, (d.count / weeklyMax) * 150)}px` }}
-                      title={`${d.day}: ${d.count}`}
-                    />
-                    <div className="bar-label">{d.day}</div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* ── Row 1:1:1 — Fleet Table + Recent Bookings + Quick Tasks ─────── */}
       <div className="row-1-1-1">
