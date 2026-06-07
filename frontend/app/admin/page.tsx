@@ -15,7 +15,8 @@ import Link from 'next/link';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Stats    = { activeBookings: number; totalBookings: number; totalCustomers: number; totalVehicles: number; monthRevenue: number; };
-type Revenue  = { month: string; totalRevenue: number; totalBookings: number; };
+type Revenue      = { month: string; totalRevenue: number; totalBookings: number; };
+type DailyRevenue = { period: string; totalRevenue: number; totalBookings: number; };
 type Booking  = { id: string; customerId: string; vehicleId: string; status: string; startDate: any; endDate: any; finalAmount: number; createdAt: any; };
 type Vehicle  = { id: string; name: string; plate: string; isAvailable: boolean; pricePerDay: number; };
 type Customer = { id: string; name: string; phone?: string; };
@@ -80,7 +81,7 @@ function StatusPill({ status }: { status: string }) {
   );
 }
 
-// ─── Month formatters ─────────────────────────────────────────────────────────
+// ─── Date/month formatters ────────────────────────────────────────────────────
 function fmtMonthShort(m: string) {
   const [y, mo] = m.split('-');
   const d = new Date(Number(y), Number(mo) - 1);
@@ -91,13 +92,20 @@ function fmtMonthFull(m: string) {
   const [y, mo] = m.split('-');
   return new Date(Number(y), Number(mo) - 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
 }
+function fmtDayTick(d: string) {
+  return new Date(d + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'short' });
+}
+function fmtDayFull(d: string) {
+  return new Date(d + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' });
+}
 
 // ─── Revenue chart tooltip ────────────────────────────────────────────────────
-const RevTooltip = ({ active, payload, label }: any) => {
+const RevTooltip = ({ active, payload, label, isDaily }: any) => {
   if (!active || !payload?.length) return null;
+  const title = isDaily ? fmtDayFull(label) : fmtMonthFull(label);
   return (
     <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: 10, padding: '0.6rem 0.85rem', fontSize: '0.77rem' }}>
-      <div style={{ color: 'var(--text-muted)', marginBottom: 4 }}>{fmtMonthFull(label)}</div>
+      <div style={{ color: 'var(--text-muted)', marginBottom: 4 }}>{title}</div>
       <div className="mono" style={{ fontWeight: 600, color: 'var(--gold)' }}>
         LKR {payload[0]?.value?.toLocaleString()}
       </div>
@@ -188,7 +196,8 @@ export default function DashboardPage() {
   const [vehicles,  setVehicles]  = useState<Vehicle[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading,   setLoading]   = useState(true);
-  const [range,     setRange]     = useState<'3M' | '6M' | '12M'>('12M');
+  const [range,     setRange]     = useState<'7D' | '3M' | '6M' | '12M'>('12M');
+  const [dailyRevenue, setDailyRevenue] = useState<DailyRevenue[]>([]);
   const [tasks,     setTasks]     = useState(INITIAL_TASKS);
 
   const rawName   = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split('@')[0] || 'Admin';
@@ -210,8 +219,18 @@ export default function DashboardPage() {
     }).finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    if (range === '7D') {
+      getRevenueStats({ range: '7d' }).then(r => setDailyRevenue(r.data || []));
+    }
+  }, [range]);
+
   // ── Derived ───────────────────────────────────────────────────────────────
-  const chartData    = (range === '3M' ? revenue.slice(-3) : range === '6M' ? revenue.slice(-6) : revenue)
+  const chartData    = (
+    range === '7D' ? dailyRevenue :
+    range === '3M' ? revenue.slice(-3) :
+    range === '6M' ? revenue.slice(-6) : revenue
+  )
                          .map(r => ({ ...r, target: Math.round(r.totalRevenue * 1.05) }));
   const total12m     = revenue.reduce((s, r) => s + r.totalRevenue, 0);
   const revSparkData = revenue.slice(-7).map(r => r.totalRevenue);
@@ -344,7 +363,7 @@ export default function DashboardPage() {
               </div>
             </div>
             <div className="tabs">
-              {(['3M', '6M', '12M'] as const).map(r => (
+              {(['7D', '3M', '6M', '12M'] as const).map(r => (
                 <button key={r} className={`tab ${range === r ? 'active' : ''}`} onClick={() => setRange(r)}>{r}</button>
               ))}
             </div>
@@ -374,9 +393,9 @@ export default function DashboardPage() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 4" stroke="var(--border-subtle)" vertical={false} />
-                  <XAxis dataKey="month" tickFormatter={fmtMonthShort} tick={{ fontSize: 10, fill: 'var(--text-muted)', fontFamily: 'var(--font-geist-mono)' }} axisLine={false} tickLine={false} />
+                  <XAxis dataKey={range === '7D' ? 'period' : 'month'} tickFormatter={range === '7D' ? fmtDayTick : fmtMonthShort} tick={{ fontSize: 10, fill: 'var(--text-muted)', fontFamily: 'var(--font-geist-mono)' }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 10, fill: 'var(--text-muted)', fontFamily: 'var(--font-geist-mono)' }} axisLine={false} tickLine={false} tickFormatter={(v) => v === 0 ? '0' : `${v / 1000}K`} />
-                  <Tooltip content={<RevTooltip />} />
+                  <Tooltip content={<RevTooltip isDaily={range === '7D'} />} />
                   <Area type="natural" dataKey="totalRevenue" stroke="var(--gold)" strokeWidth={2} fill="url(#rvGrad)" dot={false} activeDot={{ r: 4, fill: 'var(--gold)' }} strokeLinecap="round" strokeLinejoin="round" />
                   <Line type="natural" dataKey="target" stroke="var(--text-muted)" strokeWidth={1.25} strokeDasharray="4 4" strokeOpacity={0.7} dot={false} />
                 </ComposedChart>

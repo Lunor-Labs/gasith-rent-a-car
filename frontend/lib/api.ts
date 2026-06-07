@@ -42,7 +42,7 @@ export const completeBooking = (id: string, data: any) => API.put(`/bookings/${i
 export const updateBooking = (id: string, data: any) => API.put(`/bookings/${id}`, data);
 export const deleteBooking = (id: string) => API.delete(`/bookings/${id}`);
 export const getDashboardStats = () => API.get('/bookings/stats/dashboard');
-export const getRevenueStats = () => API.get('/bookings/stats/revenue');
+export const getRevenueStats = (params?: { range?: string }) => API.get('/bookings/stats/revenue', { params });
 
 // ─── Invoices ────────────────────────────────────────────────────────────────
 export const getInvoices = () => API.get('/invoices');
