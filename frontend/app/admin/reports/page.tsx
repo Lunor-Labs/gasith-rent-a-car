@@ -158,10 +158,6 @@ export default function ReportsPage() {
         <input type="date" className="form-input" value={dateTo} onChange={e => setDateTo(e.target.value)}
           style={{ padding: '0.32rem 0.6rem', fontSize: '0.8rem', width: 148 }} />
       </div>
-      <button className="btn btn-primary btn-sm" onClick={handleApply}>Apply</button>
-      {(dateFrom || dateTo) && (
-        <button className="btn btn-secondary btn-sm" onClick={handleClear}>Clear</button>
-      )}
     </div>
   );
 
@@ -248,6 +244,10 @@ export default function ReportsPage() {
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
           <DateFilter />
           <VehicleSearch />
+          <button className="btn btn-primary btn-sm" onClick={handleApply} style={{ alignSelf: 'flex-end' }}>Apply</button>
+          {(dateFrom || dateTo) && (
+            <button className="btn btn-secondary btn-sm" onClick={handleClear} style={{ alignSelf: 'flex-end' }}>Clear dates</button>
+          )}
           {vehicleId && (
             <button
               className="btn btn-secondary btn-sm"
