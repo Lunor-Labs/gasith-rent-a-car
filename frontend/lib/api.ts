@@ -55,9 +55,9 @@ export const updatePricingConfig = (data: { firstDayFreeKm: number; subsequentDa
   API.put('/pricing-config', data);
 
 // ─── Reports ──────────────────────────────────────────────────────────────────
-type DateRange = { from?: string; to?: string };
-export const getReportFinancial    = (params?: DateRange) => API.get('/reports/financial',    { params });
-export const getReportCommissions  = (params?: DateRange) => API.get('/reports/commissions',  { params });
-export const getReportBookings     = (params?: DateRange) => API.get('/reports/bookings',     { params });
-export const getReportVehicles     = (params?: DateRange) => API.get('/reports/vehicles',     { params });
+type ReportParams = { from?: string; to?: string; vehicleId?: string };
+export const getReportFinancial    = (params?: ReportParams) => API.get('/reports/financial',    { params });
+export const getReportCommissions  = (params?: ReportParams) => API.get('/reports/commissions',  { params });
+export const getReportBookings     = (params?: ReportParams) => API.get('/reports/bookings',     { params });
+export const getReportVehicles     = (params?: ReportParams) => API.get('/reports/vehicles',     { params });
 export const toggleCommissionPaid  = (bookingId: string)  => API.patch(`/reports/commissions/${bookingId}/toggle-paid`);
