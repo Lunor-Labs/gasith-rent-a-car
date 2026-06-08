@@ -8,7 +8,7 @@ import { getDashboardStats } from '@/lib/api';
 import toast from 'react-hot-toast';
 import {
   LayoutGrid, Car, Users, CalendarDays, Receipt,
-  Settings, LogOut, Menu, Sun, Moon, Bell, Search, BarChart2,
+  Settings, LogOut, Menu, Sun, Moon, Bell, Search, BarChart2, Star,
 } from 'lucide-react';
 
 const MAIN_NAV = [
@@ -18,6 +18,7 @@ const MAIN_NAV = [
   { label: 'Bookings',  href: '/admin/bookings',  Icon: CalendarDays, exact: false, badgeKey: 'activeBookings' },
   { label: 'Invoices',  href: '/admin/invoices',  Icon: Receipt,      exact: false, badgeKey: null      },
   { label: 'Reports',   href: '/admin/reports',   Icon: BarChart2,    exact: false, badgeKey: null      },
+  { label: 'Reviews',   href: '/admin/reviews',   Icon: Star,         exact: false, badgeKey: null      },
 ];
 
 const WORKSPACE_NAV = [

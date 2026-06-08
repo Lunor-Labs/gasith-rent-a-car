@@ -54,6 +54,12 @@ export const getPricingConfig = () => API.get('/pricing-config');
 export const updatePricingConfig = (data: { firstDayFreeKm: number; subsequentDayFreeKm: number }) =>
   API.put('/pricing-config', data);
 
+// ─── Reviews ─────────────────────────────────────────────────────────────────
+export const getPublicReviews   = ()          => API.get('/reviews/public');
+export const getAdminReviews    = ()          => API.get('/reviews');
+export const syncGoogleReviews  = ()          => API.post('/reviews/sync');
+export const toggleReview       = (id: string) => API.put(`/reviews/${id}/toggle`);
+
 // ─── Reports ──────────────────────────────────────────────────────────────────
 type ReportParams = { from?: string; to?: string; vehicleId?: string };
 export const getReportFinancial    = (params?: ReportParams) => API.get('/reports/financial',    { params });
