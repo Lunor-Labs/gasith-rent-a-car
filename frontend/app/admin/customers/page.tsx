@@ -3,10 +3,10 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { getCustomers, deleteCustomer, getCustomerBookings } from '@/lib/api';
 import toast from 'react-hot-toast';
-import { Plus, Pencil, Trash2, Users, Eye, FileText } from 'lucide-react';
+import { Plus, Pencil, Trash2, Users, Eye } from 'lucide-react';
 import CustomerFormModal from '@/components/CustomerFormModal';
 
-type Customer = { id: string; name: string; phone: string; email: string; address: string; nicNumber: string; nicFrontUrl: string; nicBackUrl: string; drivingLicenseUrl: string; createdAt: any; };
+type Customer = { id: string; name: string; phone: string; email: string; address: string; nicNumber: string; nicFrontUrl: string; nicBackUrl: string; drivingLicenseUrl: string; isActive?: boolean; createdAt: any; };
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -19,7 +19,7 @@ export default function CustomersPage() {
   const searchParams = useSearchParams();
   const q = searchParams.get('q')?.toLowerCase() || '';
 
-  const load = () => { setLoading(true); getCustomers().then(r => setCustomers(r.data)).finally(() => setLoading(false)); };
+  const load = () => { setLoading(true); getCustomers({ include_inactive: 'true' }).then(r => setCustomers(r.data)).finally(() => setLoading(false)); };
   useEffect(() => { load(); }, []);
 
   const openCreate = () => { setEditing(null); setModalOpen(true); };
@@ -35,7 +35,13 @@ export default function CustomersPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this customer?')) return;
-    try { await deleteCustomer(id); toast.success('Deleted'); load(); } catch { toast.error('Failed'); }
+    try {
+      const res = await deleteCustomer(id);
+      toast.success(res.data.deactivated ? 'Customer marked as inactive' : 'Customer deleted');
+      load();
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to delete customer');
+    }
   };
 
   const filtered = q
@@ -92,7 +98,10 @@ export default function CustomersPage() {
                 {filtered.map(c => (
                   <tr key={c.id}>
                     <td>
-                      <div style={{ fontWeight: 600 }}>{c.name}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <span style={{ fontWeight: 600 }}>{c.name}</span>
+                        {c.isActive === false && <span className="badge badge-muted" style={{ fontSize: '0.62rem' }}>Inactive</span>}
+                      </div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{c.email}</div>
                     </td>
                     <td>{c.phone}</td>
@@ -131,7 +140,10 @@ export default function CustomersPage() {
               <div key={c.id} className="card" style={{ padding: '1rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
                   <div>
-                    <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{c.name}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{c.name}</span>
+                      {c.isActive === false && <span className="badge badge-muted" style={{ fontSize: '0.62rem' }}>Inactive</span>}
+                    </div>
                     <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 2 }}>{c.phone}</div>
                   </div>
                   <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
