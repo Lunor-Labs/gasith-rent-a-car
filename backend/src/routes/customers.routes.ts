@@ -13,14 +13,13 @@ const docFields = upload.fields([
   { name: 'drivingLicense', maxCount: 1 },
 ]);
 
-// GET all customers
+// GET all customers — pass ?include_inactive=true to include deactivated records
 router.get('/', authMiddleware, async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('customers')
-      .select('*')
-      .order('created_at', { ascending: false });
+    let query = supabase.from('customers').select('*').order('created_at', { ascending: false });
+    if (req.query.include_inactive !== 'true') query = query.eq('is_active', true);
 
+    const { data, error } = await query;
     if (error) throw error;
     res.json((data || []).map(mapCustomerToResponse));
   } catch (err: any) {
@@ -106,16 +105,27 @@ router.put('/:id', authMiddleware, docFields, async (req, res) => {
   }
 });
 
-// DELETE customer
+// DELETE customer — blocked if booking records exist; otherwise soft-deletes (is_active = false)
 router.delete('/:id', authMiddleware, async (req, res) => {
   try {
+    const { count, error: countError } = await supabase
+      .from('bookings')
+      .select('id', { count: 'exact', head: true })
+      .eq('customer_id', req.params.id);
+
+    if (countError) throw countError;
+
+    if (count && count > 0) {
+      return res.status(400).json({ error: 'Cannot delete a customer with existing booking records.' });
+    }
+
     const { error } = await supabase
       .from('customers')
-      .delete()
+      .update({ is_active: false })
       .eq('id', req.params.id);
 
     if (error) throw error;
-    res.json({ success: true });
+    res.json({ success: true, deactivated: true });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -171,6 +181,7 @@ function mapCustomerToResponse(c: any) {
     nicFrontUrl: c.nic_front_url,
     nicBackUrl: c.nic_back_url,
     drivingLicenseUrl: c.driving_license_url,
+    isActive: c.is_active !== false,
     createdAt: c.created_at,
   };
 }

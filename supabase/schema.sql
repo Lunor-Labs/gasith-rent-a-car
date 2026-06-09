@@ -100,6 +100,17 @@ CREATE TABLE invoices (
   updated_at      TIMESTAMPTZ
 );
 
+-- ── Credit Payments (customer credit settlements) ────────────
+CREATE TABLE credit_payments (
+  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  amount      NUMERIC(12,2) NOT NULL CHECK (amount > 0),
+  paid_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  note        TEXT,
+  created_by  TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- ── Revenue (monthly aggregates) ─────────────────────────────
 CREATE TABLE revenue (
   month          TEXT PRIMARY KEY,  -- format: 'yyyy-MM'
@@ -133,6 +144,8 @@ CREATE INDEX idx_vehicles_created ON vehicles(created_at DESC);
 CREATE INDEX idx_customers_created ON customers(created_at DESC);
 CREATE INDEX idx_meter_readings_vehicle ON meter_readings(vehicle_id);
 CREATE INDEX idx_invoices_booking ON invoices(booking_id);
+CREATE INDEX idx_credit_payments_customer ON credit_payments(customer_id);
+CREATE INDEX idx_credit_payments_paid_at  ON credit_payments(paid_at DESC);
 
 -- ── Row Level Security ───────────────────────────────────────
 -- Vehicles: public read, authenticated write
@@ -162,6 +175,10 @@ CREATE POLICY "Authenticated access"
 ALTER TABLE revenue ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Authenticated access"
   ON revenue FOR ALL USING (auth.role() = 'authenticated');
+
+ALTER TABLE credit_payments ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Authenticated access"
+  ON credit_payments FOR ALL USING (auth.role() = 'authenticated');
 
 -- ── Storage: Single "uploads" bucket ─────────────────────────
 -- Create the bucket (public so vehicle images and invoice PDFs are accessible)

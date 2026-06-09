@@ -27,7 +27,7 @@ export const deleteVehicle = (id: string) => API.delete(`/vehicles/${id}`);
 export const getVehicleMeterReadings = (id: string) => API.get(`/vehicles/${id}/meter-readings`);
 
 // ─── Customers ────────────────────────────────────────────────────────────────
-export const getCustomers = () => API.get('/customers');
+export const getCustomers = (params?: Record<string, string>) => API.get('/customers', { params });
 export const getCustomer = (id: string) => API.get(`/customers/${id}`);
 export const createCustomer = (data: FormData) => API.post('/customers', data, { headers: { 'Content-Type': 'multipart/form-data' } });
 export const updateCustomer = (id: string, data: FormData) => API.put(`/customers/${id}`, data, { headers: { 'Content-Type': 'multipart/form-data' } });

@@ -32,7 +32,7 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
 type Vehicle = {
   id: string; name: string; type: string; plate: string; imageUrl: string;
   pricePerKm: number; pricePerDay: number; isOutsourced: boolean;
-  commissionRate: number; lastMeterReading: number; isAvailable: boolean; showOnLanding: boolean;
+  commissionRate: number; lastMeterReading: number; isAvailable: boolean; isActive?: boolean; showOnLanding: boolean;
 };
 
 const EMPTY = { name: '', type: 'Sedan', plate: '', pricePerKm: 0, pricePerDay: 0, isOutsourced: false, commissionRate: 10, initialMeterReading: 0, isAvailable: true, showOnLanding: false };
@@ -79,7 +79,13 @@ export default function VehiclesPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this vehicle?')) return;
-    try { await deleteVehicle(id); toast.success('Deleted'); load(); } catch { toast.error('Failed'); }
+    try {
+      const res = await deleteVehicle(id);
+      toast.success(res.data.deactivated ? 'Vehicle marked as inactive' : 'Vehicle deleted');
+      load();
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to delete vehicle');
+    }
   };
 
   const handleToggle = async (v: Vehicle, key: 'showOnLanding' | 'isAvailable') => {
@@ -190,7 +196,7 @@ export default function VehiclesPage() {
       ) : (
         <div className="grid-3" style={{ gap: '1rem' }}>
           {filtered.map(v => (
-            <div key={v.id} className="vehicle-card">
+            <div key={v.id} className="vehicle-card" style={v.isActive === false ? { opacity: 0.55 } : undefined}>
 
               {/* ── Image with overlays ── */}
               <div style={{ position: 'relative' }}>
@@ -214,11 +220,12 @@ export default function VehiclesPage() {
                   )}
                 </div>
 
-                {/* top-right: availability */}
-                <div style={{ position: 'absolute', top: '0.65rem', right: '0.65rem' }}>
-                  <span className={`badge ${v.isAvailable ? 'badge-success' : 'badge-danger'}`}>
-                    {v.isAvailable ? 'Available' : 'On Rent'}
-                  </span>
+                {/* top-right: availability / inactive */}
+                <div style={{ position: 'absolute', top: '0.65rem', right: '0.65rem', display: 'flex', flexDirection: 'column', gap: '0.3rem', alignItems: 'flex-end' }}>
+                  {v.isActive === false
+                    ? <span className="badge badge-muted">Inactive</span>
+                    : <span className={`badge ${v.isAvailable ? 'badge-success' : 'badge-danger'}`}>{v.isAvailable ? 'Available' : 'On Rent'}</span>
+                  }
                 </div>
 
                 {/* bottom overlay: name + plate */}
