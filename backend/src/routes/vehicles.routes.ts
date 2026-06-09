@@ -21,7 +21,6 @@ router.get('/', async (req, res) => {
     const { data, error } = await query;
     if (error) throw error;
 
-    // Map snake_case DB fields to camelCase for frontend compatibility
     res.json((data || []).map(mapVehicleToResponse));
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -29,12 +28,13 @@ router.get('/', async (req, res) => {
 });
 
 // GET only vehicles shown on landing page (public)
-router.get('/landing', async (req, res) => {
+router.get('/landing', async (_, res) => {
   try {
     const { data, error } = await supabase
       .from('vehicles')
       .select('*')
-      .eq('show_on_landing', true);
+      .eq('show_on_landing', true)
+      .eq('is_active', true);
 
     if (error) throw error;
     res.json((data || []).map(mapVehicleToResponse));
@@ -135,16 +135,27 @@ router.put('/:id', authMiddleware, upload.single('image'), async (req, res) => {
   }
 });
 
-// DELETE vehicle (admin)
+// DELETE vehicle — blocked if booking records exist; otherwise soft-deletes (is_active = false)
 router.delete('/:id', authMiddleware, async (req, res) => {
   try {
+    const { count, error: countError } = await supabase
+      .from('bookings')
+      .select('id', { count: 'exact', head: true })
+      .eq('vehicle_id', req.params.id);
+
+    if (countError) throw countError;
+
+    if (count && count > 0) {
+      return res.status(400).json({ error: 'Cannot delete a vehicle with existing booking records.' });
+    }
+
     const { error } = await supabase
       .from('vehicles')
-      .delete()
+      .update({ is_active: false })
       .eq('id', req.params.id);
 
     if (error) throw error;
-    res.json({ success: true });
+    res.json({ success: true, deactivated: true });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -207,6 +218,7 @@ function mapVehicleToResponse(v: any) {
     lastMeterReading: v.last_meter_reading,
     imageUrl: v.image_url,
     isAvailable: v.is_available,
+    isActive: v.is_active !== false,
     showOnLanding: v.show_on_landing,
     createdAt: v.created_at,
   };

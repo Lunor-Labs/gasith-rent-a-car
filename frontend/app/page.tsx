@@ -10,6 +10,11 @@ type Vehicle = {
   imageUrl: string; pricePerKm: number; pricePerDay: number;
 };
 
+type Review = {
+  id: string; author_name: string; profile_photo_url: string | null;
+  rating: number; text: string; relative_time_description: string | null;
+};
+
 const C = {
   bg:        '#131313',
   surface:   '#131313',
@@ -27,11 +32,13 @@ const C = {
 
 export default function LandingPage() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
     axios.get(`${API_BASE}/vehicles/landing`).then(r => setVehicles(r.data)).catch(() => {});
+    axios.get(`${API_BASE}/reviews/public`).then(r => setReviews(r.data)).catch(() => {});
     const onScroll = () => setScrolled(window.scrollY > 50);
     window.addEventListener('scroll', onScroll);
     return () => window.removeEventListener('scroll', onScroll);
@@ -369,20 +376,6 @@ export default function LandingPage() {
                   style={{ width:'100%', height:'100%', objectFit:'cover' }}
                 />
               </div>
-              {/* Rating badge */}
-              <div className="glass-card" style={{ position:'absolute', bottom:'-1.5rem', left:'-1.5rem',
-                padding:'1.5rem', borderRadius:'12px', border:'1px solid rgba(255,255,255,0.1)' }}>
-                <div style={{ display:'flex', alignItems:'center', gap:'1rem' }}>
-                  <div style={{ fontSize:'2.25rem', fontWeight:900, fontFamily:'Inter,sans-serif', color: C.gold }}>4.9</div>
-                  <div>
-                    <div style={{ display:'flex', color: C.gold, fontSize:'0.75rem' }}>
-                      {'★★★★★'.split('').map((s,i) => <span key={i}>{s}</span>)}
-                    </div>
-                    <div style={{ fontSize:'0.75rem', color: C.onVariant, textTransform:'uppercase',
-                      letterSpacing:'0.1em', fontWeight:700 }}>Google Reviews</div>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -426,29 +419,67 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── TESTIMONIALS ── */}
-      <section style={{ padding:'5rem 0', background: C.surface }}>
-        <div style={{ maxWidth:'1280px', margin:'0 auto', padding:'0 1.5rem' }}>
-          <h2 style={{ fontFamily:'Inter,sans-serif', fontWeight:700, fontSize:'2rem',
-            color: C.onSurface, textAlign:'center', marginBottom:'3rem' }}>
-            What Our Drivers Say
-          </h2>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))', gap:'3rem' }}>
-            {[
-              { quote:'"The WhatsApp booking is a game changer. I booked my SUV while at the airport and it was ready when I arrived. Highly recommended!"', name:'Mark Richardson', role:'Frequent Business Traveler' },
-              { quote:'"No hidden fees at all. Paid exactly what was quoted on WhatsApp. The car was spotless and the staff were incredibly professional."', name:'Sarah J. Miller', role:'Tourist' },
-            ].map(t => (
-              <div key={t.name} style={{ background: C.surfaceC, padding:'3rem', borderRadius:'12px',
-                borderLeft:`4px solid ${C.gold}` }}>
-                <div style={{ display:'flex', color: C.gold, marginBottom:'1rem', fontSize:'1.2rem' }}>{'★★★★★'}</div>
-                <p style={{ fontStyle:'italic', color: C.onVariant, marginBottom:'1.5rem' }}>{t.quote}</p>
-                <div style={{ fontWeight:700, color: C.onSurface }}>{t.name}</div>
-                <div style={{ fontSize:'0.75rem', color: C.outline, textTransform:'uppercase', letterSpacing:'0.05em' }}>{t.role}</div>
+      {/* ── REVIEWS ── */}
+      {reviews.length > 0 && (
+        <section style={{ padding:'5rem 0', background: C.surface }}>
+          <div style={{ maxWidth:'1280px', margin:'0 auto', padding:'0 1.5rem' }}>
+            <div style={{ textAlign:'center', marginBottom:'3rem' }}>
+              <h2 style={{ fontFamily:'Inter,sans-serif', fontWeight:700, fontSize:'2rem',
+                color: C.onSurface, marginBottom:'1.25rem' }}>
+                What Our Customers Say
+              </h2>
+              <div style={{ display:'inline-flex', alignItems:'center', gap:'0.75rem',
+                background: C.surfaceC, border:`1px solid ${C.outlineV}`,
+                borderRadius:'999px', padding:'0.55rem 1.25rem' }}>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="20" height="20" style={{ flexShrink:0 }}>
+                  <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                  <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                  <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                  <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.34-8.16 2.34-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                </svg>
+                <span style={{ fontFamily:'Inter,sans-serif', fontWeight:800, fontSize:'1.1rem', color: C.gold }}>
+                  {(reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1)}
+                </span>
+                <span style={{ color: C.gold, fontSize:'0.85rem', letterSpacing:2 }}>{'★★★★★'}</span>
+                <span style={{ fontSize:'0.75rem', color: C.onVariant, fontWeight:600,
+                  textTransform:'uppercase', letterSpacing:'0.08em' }}>Google Reviews</span>
               </div>
-            ))}
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))', gap:'2rem' }}>
+              {reviews.map(r => (
+                <div key={r.id} style={{ background: C.surfaceC, padding:'2rem', borderRadius:'12px',
+                  borderLeft:`4px solid ${C.gold}` }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:'0.75rem', marginBottom:'1rem' }}>
+                    {r.profile_photo_url ? (
+                      <img src={r.profile_photo_url} alt={r.author_name}
+                        style={{ width:40, height:40, borderRadius:'50%', objectFit:'cover' }}
+                        referrerPolicy="no-referrer" />
+                    ) : (
+                      <div style={{ width:40, height:40, borderRadius:'50%', background: C.surfaceCH,
+                        display:'flex', alignItems:'center', justifyContent:'center',
+                        fontWeight:700, color: C.onVariant }}>
+                        {r.author_name.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div>
+                      <div style={{ fontWeight:700, color: C.onSurface, fontSize:'0.9rem' }}>{r.author_name}</div>
+                      {r.relative_time_description && (
+                        <div style={{ fontSize:'0.72rem', color: C.outline }}>{r.relative_time_description}</div>
+                      )}
+                    </div>
+                  </div>
+                  <div style={{ color: C.gold, marginBottom:'0.75rem', fontSize:'1rem', letterSpacing:2 }}>
+                    {'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}
+                  </div>
+                  <p style={{ fontStyle:'italic', color: C.onVariant, lineHeight:1.6, margin:0, fontSize:'0.9rem' }}>
+                    "{r.text}"
+                  </p>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* ── CTA ── */}
       <section style={{ padding:'5rem 0', background: C.gold }}>

@@ -91,8 +91,6 @@ export async function generateInvoicePDF({ booking, customer, vehicle }: Invoice
   const endReading   = booking.endMeterReading   || booking.end_meter_reading;
   const notes        = booking.notes || '';
   const isOutsourced = booking.isOutsourced || booking.is_outsourced || false;
-  const outsourcedPayment = booking.outsourcedPayment || booking.outsourced_payment || 0;
-  const commissionRate    = booking.commissionRate    || booking.commission_rate    || 0;
 
   let days = 1;
   if (startDate && endDate) {
@@ -241,29 +239,24 @@ export async function generateInvoicePDF({ booking, customer, vehicle }: Invoice
     y += rh;
   };
 
-  if (isOutsourced) {
-    tableRow('Outsourced Payment Received', lkr(outsourcedPayment), undefined, false);
-    tableRow(`Commission (${commissionRate}%)`, `- ${lkr(outsourcedPayment * commissionRate / 100)}`, undefined, true, GREEN);
-  } else {
+  tableRow(
+    `Daily Rental (${days} day${days > 1 ? 's' : ''})`,
+    lkr(pricePerDay * days),
+    `${fmt(startDate)} — ${fmt(endDate)} · LKR ${pricePerDay.toLocaleString()} / day`,
+    false
+  );
+
+  if (freeKm > 0) {
+    tableRow('Free KM Included', `${freeKm.toLocaleString()} km`, undefined, true, MID);
+  }
+
+  if (extraKm > 0) {
     tableRow(
-      `Daily Rental (${days} day${days > 1 ? 's' : ''})`,
-      lkr(pricePerDay * days),
-      `${fmt(startDate)} — ${fmt(endDate)} · LKR ${pricePerDay.toLocaleString()} / day`,
+      `Extra KM Charge (${extraKm.toLocaleString()} km)`,
+      lkr(extraKmCharge),
+      `${extraKm.toLocaleString()} km × LKR ${pricePerKm.toLocaleString()} / km`,
       false
     );
-
-    if (freeKm > 0) {
-      tableRow('Free KM Included', `${freeKm.toLocaleString()} km`, undefined, true, MID);
-    }
-
-    if (extraKm > 0) {
-      tableRow(
-        `Extra KM Charge (${extraKm.toLocaleString()} km)`,
-        lkr(extraKmCharge),
-        `${extraKm.toLocaleString()} km × LKR ${pricePerKm.toLocaleString()} / km`,
-        false
-      );
-    }
   }
 
   // Subtotal
