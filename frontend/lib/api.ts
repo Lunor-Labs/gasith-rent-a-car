@@ -27,7 +27,7 @@ export const deleteVehicle = (id: string) => API.delete(`/vehicles/${id}`);
 export const getVehicleMeterReadings = (id: string) => API.get(`/vehicles/${id}/meter-readings`);
 
 // ─── Customers ────────────────────────────────────────────────────────────────
-export const getCustomers = () => API.get('/customers');
+export const getCustomers = (params?: { include_inactive?: string }) => API.get('/customers', { params });
 export const getCustomer = (id: string) => API.get(`/customers/${id}`);
 export const createCustomer = (data: FormData) => API.post('/customers', data, { headers: { 'Content-Type': 'multipart/form-data' } });
 export const updateCustomer = (id: string, data: FormData) => API.put(`/customers/${id}`, data, { headers: { 'Content-Type': 'multipart/form-data' } });
@@ -67,6 +67,12 @@ export const getReportCommissions  = (params?: ReportParams) => API.get('/report
 export const getReportBookings     = (params?: ReportParams) => API.get('/reports/bookings',     { params });
 export const getReportVehicles     = (params?: ReportParams) => API.get('/reports/vehicles',     { params });
 export const toggleCommissionPaid  = (bookingId: string)  => API.patch(`/reports/commissions/${bookingId}/toggle-paid`);
+
+// ─── Credits ─────────────────────────────────────────────────────────────────
+export const getCreditAccounts   = ()                                   => API.get('/credits');
+export const getCreditAccount    = (customerId: string)                 => API.get(`/credits/${customerId}`);
+export const addCreditPayment    = (customerId: string, data: { amount: number; paidAt?: string; note?: string }) => API.post(`/credits/${customerId}/payments`, data);
+export const deleteCreditPayment = (paymentId: string)                  => API.delete(`/credits/payments/${paymentId}`);
 
 // ─── Tasks ───────────────────────────────────────────────────────────────────
 export const getTasks   = ()                                                        => API.get('/tasks');

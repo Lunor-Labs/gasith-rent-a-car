@@ -10,6 +10,7 @@ import pricingConfigRoutes from './routes/pricing-config.routes';
 import reportsRoutes from './routes/reports.routes';
 import taskRoutes from './routes/tasks.routes';
 import reviewRoutes from './routes/reviews.routes';
+import creditRoutes from './routes/credits.routes';
 
 const app = express();
 
@@ -42,6 +43,7 @@ app.use('/api/pricing-config', pricingConfigRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/tasks',   taskRoutes);
 app.use('/api/reviews', reviewRoutes);
+app.use('/api/credits', creditRoutes);
 
 app.get('/api/health', (_, res) => res.json({ status: 'ok', timestamp: new Date() }));
 

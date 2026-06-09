@@ -3,8 +3,9 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { getCustomers, deleteCustomer, getCustomerBookings } from '@/lib/api';
 import toast from 'react-hot-toast';
-import { Plus, Pencil, Trash2, Users, Eye } from 'lucide-react';
+import { Plus, Pencil, Trash2, Users, Eye, Wallet } from 'lucide-react';
 import CustomerFormModal from '@/components/CustomerFormModal';
+import CreditAccountModal from '@/components/CreditAccountModal';
 
 type Customer = { id: string; name: string; phone: string; email: string; address: string; nicNumber: string; nicFrontUrl: string; nicBackUrl: string; drivingLicenseUrl: string; isActive?: boolean; createdAt: any; };
 
@@ -15,6 +16,7 @@ export default function CustomersPage() {
   const [detailOpen, setDetailOpen] = useState<Customer | null>(null);
   const [editing, setEditing] = useState<Customer | null>(null);
   const [custBookings, setCustBookings] = useState<any[]>([]);
+  const [creditCustomerId, setCreditCustomerId] = useState<string | null>(null);
 
   const searchParams = useSearchParams();
   const q = searchParams.get('q')?.toLowerCase() || '';
@@ -120,6 +122,9 @@ export default function CustomersPage() {
                         <button onClick={() => openDetail(c)} className="btn btn-ghost btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
                           <Eye size={12} strokeWidth={1.5} /> View
                         </button>
+                        <button onClick={() => setCreditCustomerId(c.id)} className="btn btn-ghost btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }} title="View credit account">
+                          <Wallet size={12} strokeWidth={1.5} /> Credit
+                        </button>
                         <button onClick={() => openEdit(c)} className="btn btn-secondary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
                           <Pencil size={12} strokeWidth={1.5} /> Edit
                         </button>
@@ -155,9 +160,12 @@ export default function CustomersPage() {
                   {c.email && <span>{c.email}</span>}
                   {c.nicNumber && <code style={{ fontSize: '0.72rem' }}>NIC: {c.nicNumber}</code>}
                 </div>
-                <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'flex-end' }}>
+                <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                   <button onClick={() => openDetail(c)} className="btn btn-ghost btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
                     <Eye size={12} strokeWidth={1.5} /> View
+                  </button>
+                  <button onClick={() => setCreditCustomerId(c.id)} className="btn btn-ghost btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                    <Wallet size={12} strokeWidth={1.5} /> Credit
                   </button>
                   <button onClick={() => openEdit(c)} className="btn btn-secondary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
                     <Pencil size={12} strokeWidth={1.5} /> Edit
@@ -177,6 +185,12 @@ export default function CustomersPage() {
         onClose={closeModal}
         onSaved={handleSaved}
         editing={editing}
+      />
+
+      <CreditAccountModal
+        open={creditCustomerId != null}
+        customerId={creditCustomerId}
+        onClose={() => setCreditCustomerId(null)}
       />
 
       {/* Detail Modal */}
