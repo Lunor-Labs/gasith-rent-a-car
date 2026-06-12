@@ -7,7 +7,7 @@ import { useTheme } from '@/context/ThemeContext';
 import { getDashboardStats } from '@/lib/api';
 import toast from 'react-hot-toast';
 import {
-  LayoutGrid, Car, Users, CalendarDays, Receipt,
+  LayoutGrid, Car, Users, CalendarDays,
   Settings, LogOut, Menu, Sun, Moon, Bell, Search, BarChart2, Star, Wallet,
 } from 'lucide-react';
 
@@ -16,7 +16,6 @@ const MAIN_NAV = [
   { label: 'Vehicles',  href: '/admin/vehicles',  Icon: Car,          exact: false, badgeKey: 'totalVehicles'  },
   { label: 'Customers', href: '/admin/customers', Icon: Users,        exact: false, badgeKey: 'totalCustomers' },
   { label: 'Bookings',  href: '/admin/bookings',  Icon: CalendarDays, exact: false, badgeKey: 'activeBookings' },
-  { label: 'Invoices',  href: '/admin/invoices',  Icon: Receipt,      exact: false, badgeKey: null      },
   { label: 'Credits',   href: '/admin/credits',   Icon: Wallet,       exact: false, badgeKey: null      },
   { label: 'Reports',   href: '/admin/reports',   Icon: BarChart2,    exact: false, badgeKey: null      },
   { label: 'Reviews',   href: '/admin/reviews',   Icon: Star,         exact: false, badgeKey: null      },
@@ -168,7 +167,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 setSearchQuery(v);
                 router.replace(v ? `${pathname}?q=${encodeURIComponent(v)}` : pathname);
               }}
-              placeholder={`Search ${{ Vehicles: 'by name or plate', Customers: 'by name or phone', Bookings: 'by customer or ID', Invoices: 'by invoice or booking ID' }[currentPage] ?? 'anything'}...`}
+              placeholder={`Search ${{ Vehicles: 'by name or plate', Customers: 'by name or phone', Bookings: 'by customer or ID' }[currentPage] ?? 'anything'}...`}
               style={{ background: 'none', border: 'none', outline: 'none', color: 'var(--text-primary)', fontSize: '0.82rem', width: '100%', fontFamily: 'inherit' }}
             />
           </div>
@@ -193,7 +192,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   setSearchQuery(v);
                   router.replace(v ? `${pathname}?q=${encodeURIComponent(v)}` : pathname);
                 }}
-                placeholder={`Search ${{ Vehicles: 'by name or plate', Customers: 'by name or phone', Bookings: 'by customer or ID', Invoices: 'by invoice or booking ID' }[currentPage] ?? 'anything'}...`}
+                placeholder={`Search ${{ Vehicles: 'by name or plate', Customers: 'by name or phone', Bookings: 'by customer or ID' }[currentPage] ?? 'anything'}...`}
                 style={{ background: 'none', border: 'none', outline: 'none', color: 'var(--text-primary)', fontSize: '0.76rem', width: 200, fontFamily: 'inherit' }}
               />
             </div>
