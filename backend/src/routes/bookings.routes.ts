@@ -255,7 +255,7 @@ router.put('/:id/complete', authMiddleware, async (req, res) => {
     const start = new Date(booking.start_date);
     // Use due date for billing calculation; fall back to endDate or today
     const billingEnd = dueDate ? new Date(dueDate) : (endDate ? new Date(endDate) : new Date());
-    const days = Math.max(1, Math.ceil((billingEnd.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+    const days = Math.max(1, Math.ceil((billingEnd.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
 
     // Outsourced vehicles: meter reading is optional — 0 KM if not provided
     const endReading = endMeterReading ? Number(endMeterReading) : null;
