@@ -621,7 +621,7 @@ export default function BookingDetailPage() {
             <button onClick={handleGenerateInvoice} className="btn btn-primary" disabled={generating}>
               {generating ? <span className="spinner" /> : '📄 Generate PDF'}
             </button>
-            {booking.invoiceUrl && <a href={booking.invoiceUrl} target="_blank" className="btn btn-secondary">⬇ Download</a>}
+            {(invoice?.pdfUrl || booking.invoiceUrl) && <a href={invoice?.pdfUrl || booking.invoiceUrl} target="_blank" className="btn btn-secondary">⬇ Download</a>}
             {(invoice || booking.invoiceUrl) && (
               <button onClick={handleWhatsApp} className="btn btn-sm" style={{ background: '#25D366', color: '#fff', border: 'none', borderRadius: 10, padding: '0.55rem 0.9rem', display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontWeight: 600, fontSize: '0.82rem' }}>
                 <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: 15, height: 15 }}>
