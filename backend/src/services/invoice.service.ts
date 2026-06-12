@@ -57,7 +57,6 @@ export async function generateInvoicePDF({ booking, customer, vehicle }: Invoice
   const WHITE:  [number,number,number] = [255, 255, 255];
   const HEADER_BG: [number,number,number] = [22, 22, 22];
   const DIVIDER: [number,number,number] = [220, 210, 180];
-  const ROW_ALT: [number,number,number] = [250, 248, 242];
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
   const setFont = (weight: 'normal'|'bold'|'italic', size: number, color: [number,number,number]) => {
@@ -191,6 +190,14 @@ export async function generateInvoicePDF({ booking, customer, vehicle }: Invoice
   doc.text(fmt(endDate), detailCol3, y);
   y += 7;
 
+  // Row: No of Days
+  setFont('bold', 7.5, MUTED);
+  doc.text('NO OF DAYS', ML, y);
+  y += 4;
+  setFont('bold', 9.5, DARK);
+  doc.text(`${days} day${days > 1 ? 's' : ''}`, ML, y);
+  y += 7;
+
   if (!isOutsourced && (startReading || endReading)) {
     setFont('bold', 7.5, MUTED);
     doc.text('START ODOMETER', ML, y);
@@ -212,52 +219,6 @@ export async function generateInvoicePDF({ booking, customer, vehicle }: Invoice
   setFont('bold', 7.5, GOLD);
   doc.text('CHARGES', ML, y);
   y += 5;
-
-  // Table header
-  doc.setFillColor(...HEADER_BG);
-  doc.roundedRect(ML, y, CW, 7.5, 1.5, 1.5, 'F');
-  setFont('bold', 8.5, WHITE);
-  doc.text('DESCRIPTION', ML + 5, y + 5);
-  doc.text('AMOUNT', ML + CW - 5, y + 5, { align: 'right' });
-  y += 11;
-
-  const tableRow = (label: string, value: string, sub?: string, isAlt = false, color?: [number,number,number]) => {
-    const rh = sub ? 10 : 7.5;
-    if (isAlt) {
-      doc.setFillColor(...ROW_ALT);
-      doc.rect(ML, y, CW, rh, 'F');
-    }
-    setFont('normal', 9, color || DARK);
-    doc.text(label, ML + 5, y + 5);
-    if (sub) {
-      setFont('normal', 7.5, MUTED);
-      doc.text(sub, ML + 5, y + 8.5);
-    }
-    setFont('bold', 9, color || DARK);
-    doc.text(value, ML + CW - 5, y + 5, { align: 'right' });
-    line(ML, y + rh, ML + CW, y + rh, [235, 235, 235]);
-    y += rh;
-  };
-
-  tableRow(
-    `Daily Rental (${days} day${days > 1 ? 's' : ''})`,
-    lkr(pricePerDay * days),
-    `${fmt(startDate)} — ${fmt(endDate)} · LKR ${pricePerDay.toLocaleString()} / day`,
-    false
-  );
-
-  if (freeKm > 0) {
-    tableRow('Free KM Included', `${freeKm.toLocaleString()} km`, undefined, true, MID);
-  }
-
-  if (extraKm > 0) {
-    tableRow(
-      `Extra KM Charge (${extraKm.toLocaleString()} km)`,
-      lkr(extraKmCharge),
-      `${extraKm.toLocaleString()} km × LKR ${pricePerKm.toLocaleString()} / km`,
-      false
-    );
-  }
 
   // Subtotal
   y += 3;
