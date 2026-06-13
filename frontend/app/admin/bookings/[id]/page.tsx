@@ -275,6 +275,11 @@ export default function BookingDetailPage() {
             </span>
           </div>
         )}
+        {booking.withDriver && (
+          <div style={{ marginTop: '0.75rem' }}>
+            <span className="badge badge-muted">With Driver</span>
+          </div>
+        )}
       </div>
 
       {/* ── Complete Booking Form (active only) ──────────────────────────── */}
@@ -644,6 +649,12 @@ export default function BookingDetailPage() {
               )}
               {booking.additionalDiscount > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', color: '#22c55e' }}><span>Additional Discount</span><span>- LKR {booking.additionalDiscount.toLocaleString()}</span></div>
+              )}
+              {booking.driverFee > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>Driver Service</span>
+                  <span>+ LKR {Number(booking.driverFee).toLocaleString()}</span>
+                </div>
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: '0.45rem', marginTop: '0.2rem', fontWeight: 700, fontSize: '1.05rem', color: 'var(--gold)' }}>
                 <span>Trip Total</span><span>LKR {(booking.finalAmount || 0).toLocaleString()}</span>
