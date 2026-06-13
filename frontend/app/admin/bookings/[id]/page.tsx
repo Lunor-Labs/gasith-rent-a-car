@@ -26,6 +26,8 @@ export default function BookingDetailPage() {
     paymentMethod: 'cash' as 'cash' | 'credit' | 'mixed',
     cashAmount: '',
     creditAmount: '',
+    withDriver: false,
+    driverFee: '',
   });
 
   const load = async () => {
@@ -40,6 +42,7 @@ export default function BookingDetailPage() {
         dueDate: b.data.endDate ? new Date(b.data.endDate).toISOString().split('T')[0] : f.dueDate,
         // pre-fill only if a custom commission was previously saved
         commissionAmount: b.data.commissionAmount != null ? String(b.data.commissionAmount) : '',
+        withDriver: b.data.withDriver || false,
       }));
       const [c, v] = await Promise.all([
         getCustomer(b.data.customerId),
@@ -115,10 +118,13 @@ export default function BookingDetailPage() {
     const base = days * defaultPricePerDay + defaultExtraKmCharge;
     const final = Math.max(0, base - totalDiscount);
 
+    const driverFee = endForm.withDriver ? (Number(endForm.driverFee) || 0) : 0;
+    const grandTotal = final + driverFee;
+
     return {
       days, totalKm, freeKm, autoDefaultFreeKm, extraKm, extraKmCharge,
       pricePerDay, defaultPricePerDay, rateDiscount, kmDiscount, additionalDiscount, totalDiscount,
-      base, final,
+      base, final, driverFee, grandTotal,
     };
   };
 
@@ -141,7 +147,7 @@ export default function BookingDetailPage() {
     if (!calcDay) return false;
     const cash = Number(endForm.cashAmount) || 0;
     const credit = Number(endForm.creditAmount) || 0;
-    return Math.abs((cash + credit) - calcDay.final) < 1; // allow LKR 1 rounding tolerance
+    return Math.abs((cash + credit) - calcDay.grandTotal) < 1; // allow LKR 1 rounding tolerance
   })();
 
   // ── Handlers ──────────────────────────────────────────────────────────────
@@ -164,9 +170,11 @@ export default function BookingDetailPage() {
         additionalDiscount: endForm.additionalDiscount ? Number(endForm.additionalDiscount) : 0,
         paymentMethod: endForm.paymentMethod,
         cashAmount: endForm.paymentMethod === 'mixed' ? Number(endForm.cashAmount) || 0
-          : endForm.paymentMethod === 'cash' ? (calcDay?.final ?? 0) : undefined,
+          : endForm.paymentMethod === 'cash' ? (calcDay?.grandTotal ?? 0) : undefined,
         creditAmount: endForm.paymentMethod === 'mixed' ? Number(endForm.creditAmount) || 0
-          : endForm.paymentMethod === 'credit' ? (calcDay?.final ?? 0) : undefined,
+          : endForm.paymentMethod === 'credit' ? (calcDay?.grandTotal ?? 0) : undefined,
+        withDriver: endForm.withDriver,
+        driverFee: endForm.withDriver && endForm.driverFee ? Number(endForm.driverFee) : 0,
       });
       toast.success('Booking completed!'); load();
     } catch (err: any) { toast.error(err?.response?.data?.error || 'Failed'); }
@@ -340,6 +348,32 @@ export default function BookingDetailPage() {
               />
             </div>
 
+            {/* With Driver toggle */}
+            <div className="form-group">
+              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={endForm.withDriver}
+                  onChange={e => setEndForm({ ...endForm, withDriver: e.target.checked, driverFee: '' })}
+                  style={{ width: 16, height: 16, accentColor: 'var(--gold)', cursor: 'pointer' }}
+                />
+                With Driver
+              </label>
+            </div>
+
+            {/* Driver Fee (shown only when withDriver is on) */}
+            {endForm.withDriver && (
+              <div className="form-group">
+                <label className="form-label">Driver Fee (LKR)</label>
+                <input
+                  type="number" className="form-input" min={0}
+                  placeholder="0"
+                  value={endForm.driverFee}
+                  onChange={e => setEndForm({ ...endForm, driverFee: e.target.value })}
+                />
+              </div>
+            )}
+
             {/* Commission override (outsourced only) */}
             {booking.isOutsourced && (
               <div className="form-group">
@@ -438,6 +472,18 @@ export default function BookingDetailPage() {
                     <span>Trip Total</span>
                     <span>LKR {calcDay.final.toLocaleString()}</span>
                   </div>
+                  {calcDay.driverFee > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.35rem' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>Driver Service</span>
+                      <span>+ LKR {calcDay.driverFee.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {calcDay.driverFee > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: '0.45rem', marginTop: '0.2rem', fontWeight: 700, fontSize: '1rem', color: 'var(--gold)' }}>
+                      <span>Grand Total</span>
+                      <span>LKR {calcDay.grandTotal.toLocaleString()}</span>
+                    </div>
+                  )}
                   {commissionCalc && (
                     <>
                       <div style={{ display: 'flex', justifyContent: 'space-between', color: '#ef4444', marginTop: '0.35rem' }}>
@@ -519,7 +565,7 @@ export default function BookingDetailPage() {
                     }}>
                       {paymentValid
                         ? `✓ Cash (LKR ${(Number(endForm.cashAmount) || 0).toLocaleString()}) + Credit (LKR ${(Number(endForm.creditAmount) || 0).toLocaleString()}) = Total`
-                        : `⚠ Cash + Credit = LKR ${((Number(endForm.cashAmount) || 0) + (Number(endForm.creditAmount) || 0)).toLocaleString()} — must equal LKR ${calcDay.final.toLocaleString()}`
+                        : `⚠ Cash + Credit = LKR ${((Number(endForm.cashAmount) || 0) + (Number(endForm.creditAmount) || 0)).toLocaleString()} — must equal LKR ${calcDay.grandTotal.toLocaleString()}`
                       }
                     </div>
                   )}
