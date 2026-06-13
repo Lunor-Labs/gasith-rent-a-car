@@ -78,3 +78,10 @@ export const deleteCreditPayment = (paymentId: string)                  => API.d
 export const getTasks   = ()                                                        => API.get('/tasks');
 export const createTask = (data: { title: string; tag: string; tagLabel: string }) => API.post('/tasks', data);
 export const toggleTask = (id: string)                                              => API.patch(`/tasks/${id}`);
+
+// ─── Agreements ───────────────────────────────────────────────────────────────
+export const signAgreement = (bookingId: string, data: { signature: string; language: 'en' | 'si' }) =>
+  API.post(`/agreements/${bookingId}/sign`, data);
+export const getAppConfig  = () => API.get('/agreements/app-config');
+export const saveAppConfig = (data: { companySignatoryName: string; companySignatoryTitle: string; companySignature: string }) =>
+  API.put('/agreements/app-config', data);
