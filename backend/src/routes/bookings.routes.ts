@@ -532,6 +532,8 @@ function mapBookingToResponse(b: any) {
     creditAmount: b.credit_amount,
     withDriver: b.with_driver,
     driverFee: b.driver_fee,
+    agreementUrl: b.agreement_url,
+    agreementSignedAt: b.agreement_signed_at,
     createdAt: b.created_at,
   };
 }
