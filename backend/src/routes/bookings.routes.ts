@@ -373,6 +373,11 @@ router.put('/:id/complete', authMiddleware, async (req, res) => {
         });
     }
 
+    // For outsourced vehicles, admin income is the commission only — not the full final_amount
+    const adminIncome = booking.is_outsourced
+      ? (resolvedCommissionAmount || 0)
+      : finalAmount;
+
     const monthKey = format(new Date(), 'yyyy-MM');
     const { data: revDoc } = await supabase
       .from('revenue')
@@ -384,7 +389,7 @@ router.put('/:id/complete', authMiddleware, async (req, res) => {
       await supabase
         .from('revenue')
         .update({
-          total_revenue: (revDoc.total_revenue || 0) + finalAmount,
+          total_revenue: (revDoc.total_revenue || 0) + adminIncome,
           total_bookings: (revDoc.total_bookings || 0) + 1,
           total_km: (revDoc.total_km || 0) + totalKm,
           updated_at: new Date().toISOString(),
@@ -395,7 +400,7 @@ router.put('/:id/complete', authMiddleware, async (req, res) => {
         .from('revenue')
         .insert({
           month: monthKey,
-          total_revenue: finalAmount,
+          total_revenue: adminIncome,
           total_bookings: 1,
           total_km: totalKm,
         });
