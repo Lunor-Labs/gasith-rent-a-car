@@ -130,7 +130,7 @@ router.post('/', authMiddleware, async (req, res) => {
       startMeterReading, pricePerKm, pricePerDay,
       freeKm, firstDayFreeKm, subsequentDayFreeKm,
       isOutsourced, outsourcedPayment,
-      commissionRate, notes,
+      commissionRate, notes, withDriver,
     } = req.body;
 
     const { data: vehicleData } = await supabase
@@ -188,6 +188,7 @@ router.post('/', authMiddleware, async (req, res) => {
         outsourced_payment: outsourcedPayment ? Number(outsourcedPayment) : null,
         commission_rate: Boolean(isOutsourced) ? (Number(commissionRate) || 10) : 0,
         status: 'active',
+        with_driver: Boolean(withDriver),
         invoice_url: '',
         notes: notes || '',
       })
