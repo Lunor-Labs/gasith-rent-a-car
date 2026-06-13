@@ -122,7 +122,7 @@ export default function AgreementSignModal({ bookingId, customerName, onClose, o
 
   return (
     <div style={{
-      position: 'fixed', inset: 0, background: 'var(--bg-base)',
+      position: 'fixed', inset: 0, background: 'var(--bg-primary)',
       zIndex: 1000, display: 'flex', flexDirection: 'column', overflow: 'hidden',
     }}>
       {/* Header */}
