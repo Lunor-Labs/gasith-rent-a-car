@@ -90,6 +90,7 @@ export async function generateInvoicePDF({ booking, customer, vehicle }: Invoice
   const endReading   = booking.endMeterReading   || booking.end_meter_reading;
   const notes        = booking.notes || '';
   const isOutsourced = booking.isOutsourced || booking.is_outsourced || false;
+  const driverFee = booking.driverFee || booking.driver_fee || 0;
 
   let days = 1;
   if (startDate && endDate) {
@@ -244,6 +245,14 @@ export async function generateInvoicePDF({ booking, customer, vehicle }: Invoice
     doc.text('Additional Discount', ML + 5, y);
     setFont('bold', 9, GREEN);
     doc.text(`- ${lkr(additionalDiscount)}`, ML + CW - 5, y, { align: 'right' });
+    y += 6.5;
+  }
+
+  if (driverFee > 0) {
+    setFont('normal', 8.5, MID);
+    doc.text('Driver Service', ML + 5, y);
+    setFont('bold', 9, DARK);
+    doc.text(`+ ${lkr(driverFee)}`, ML + CW - 5, y, { align: 'right' });
     y += 6.5;
   }
 
