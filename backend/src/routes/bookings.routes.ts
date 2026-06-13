@@ -130,7 +130,7 @@ router.post('/', authMiddleware, async (req, res) => {
       startMeterReading, pricePerKm, pricePerDay,
       freeKm, firstDayFreeKm, subsequentDayFreeKm,
       isOutsourced, outsourcedPayment,
-      commissionRate, notes,
+      commissionRate, notes, withDriver,
     } = req.body;
 
     const { data: vehicleData } = await supabase
@@ -188,6 +188,7 @@ router.post('/', authMiddleware, async (req, res) => {
         outsourced_payment: outsourcedPayment ? Number(outsourcedPayment) : null,
         commission_rate: Boolean(isOutsourced) ? (Number(commissionRate) || 10) : 0,
         status: 'active',
+        with_driver: Boolean(withDriver),
         invoice_url: '',
         notes: notes || '',
       })
@@ -225,6 +226,7 @@ router.put('/:id/complete', authMiddleware, async (req, res) => {
       dueDate, actualReturnDate,
       paymentMethod, cashAmount, creditAmount,
       commissionAmount, freeKm, additionalDiscount,
+      withDriver, driverFee,
     } = req.body;
 
     const { data: booking, error: fetchError } = await supabase
@@ -293,11 +295,15 @@ router.put('/:id/complete', authMiddleware, async (req, res) => {
     const extraDiscount = Number(additionalDiscount) || 0;
     computedDiscount = Math.max(0, rateDiscount + kmDiscount) + extraDiscount;
 
-    finalAmount = Math.max(0, baseAmount - computedDiscount);
+    const tripAmount = Math.max(0, baseAmount - computedDiscount);
+    const resolvedDriverFee = withDriver && driverFee != null && driverFee !== ''
+      ? Number(driverFee)
+      : 0;
+    finalAmount = tripAmount + resolvedDriverFee;
 
     // Commission on top of computed trip price for outsourced vehicles
     if (booking.is_outsourced) {
-      const defaultCommission = finalAmount < 5000 ? 500 : Math.round(finalAmount * 0.10);
+      const defaultCommission = tripAmount < 5000 ? 500 : Math.round(tripAmount * 0.10);
       resolvedCommissionAmount = commissionAmount != null && commissionAmount !== ''
         ? Number(commissionAmount)
         : defaultCommission;
@@ -339,6 +345,8 @@ router.put('/:id/complete', authMiddleware, async (req, res) => {
         payment_method: resolvedPaymentMethod,
         cash_amount: resolvedCashAmount,
         credit_amount: resolvedCreditAmount,
+        with_driver: withDriver != null ? Boolean(withDriver) : booking.with_driver,
+        driver_fee: resolvedDriverFee > 0 ? resolvedDriverFee : null,
         status: 'completed',
       })
       .eq('id', req.params.id);
@@ -433,6 +441,8 @@ router.put('/:id', authMiddleware, async (req, res) => {
       paymentMethod: 'payment_method',
       cashAmount: 'cash_amount',
       creditAmount: 'credit_amount',
+      withDriver: 'with_driver',
+      driverFee: 'driver_fee',
     };
 
     for (const [key, value] of Object.entries(req.body)) {
@@ -520,6 +530,8 @@ function mapBookingToResponse(b: any) {
     paymentMethod: b.payment_method,
     cashAmount: b.cash_amount,
     creditAmount: b.credit_amount,
+    withDriver: b.with_driver,
+    driverFee: b.driver_fee,
     createdAt: b.created_at,
   };
 }

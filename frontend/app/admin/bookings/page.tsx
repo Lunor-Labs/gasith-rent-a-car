@@ -8,7 +8,7 @@ import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { Plus, Trash2, CalendarDays, Route, CalendarCheck, CalendarPlus, Users, Car, Gauge, Banknote, NotebookPen } from 'lucide-react';
 
-type Booking = { id: string; customerId: string; vehicleId: string; status: string; startDate: any; endDate: any; finalAmount: number; totalKm: number; isOutsourced: boolean; billingMode: string; notes: string; };
+type Booking = { id: string; customerId: string; vehicleId: string; status: string; startDate: any; endDate: any; finalAmount: number; totalKm: number; isOutsourced: boolean; billingMode: string; notes: string; withDriver: boolean; };
 type Customer = { id: string; name: string; phone: string; };
 type Vehicle = { id: string; name: string; plate: string; isAvailable: boolean; pricePerKm: number; pricePerDay: number; lastMeterReading: number; isOutsourced: boolean; commissionRate: number; };
 
@@ -36,6 +36,7 @@ export default function BookingsPage() {
     firstDayFreeKm: '',
     subsequentDayFreeKm: '',
     notes: '',
+    withDriver: false,
   });
 
   const load = () => {
@@ -89,11 +90,12 @@ export default function BookingsPage() {
         isOutsourced: selectedVehicle?.isOutsourced || false,
         commissionRate: selectedVehicle?.isOutsourced ? (selectedVehicle?.commissionRate || 10) : 0,
         billingMode: 'per_day',
+        withDriver: form.withDriver,
       });
       toast.success('Booking created');
       setModalOpen(false);
       setCustomerModalOpen(false);
-      setForm({ customerId: '', vehicleId: '', startDate: '', endDate: '', startMeterReading: '', pricePerDay: '', pricePerKm: '', firstDayFreeKm: '', subsequentDayFreeKm: '', notes: '' });
+      setForm({ customerId: '', vehicleId: '', startDate: '', endDate: '', startMeterReading: '', pricePerDay: '', pricePerKm: '', firstDayFreeKm: '', subsequentDayFreeKm: '', notes: '', withDriver: false });
       load();
     } catch (err: any) { toast.error(err?.response?.data?.error || 'Failed to create booking'); }
     finally { setSubmitting(false); }
@@ -190,7 +192,10 @@ export default function BookingsPage() {
                     <td><span className={`badge ${STATUS_COLORS[b.status] || 'badge-muted'}`}>{b.status}</span></td>
                     <td style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{fmtDate(b.startDate)}</td>
                     <td style={{ fontWeight: 600 }}>{b.finalAmount > 0 ? `LKR ${b.finalAmount.toLocaleString()}` : '—'}</td>
-                    <td><span className={`badge ${b.isOutsourced ? 'badge-warning' : 'badge-muted'}`}>{b.isOutsourced ? 'Outsourced' : 'Direct'}</span></td>
+                    <td>
+                      <span className={`badge ${b.isOutsourced ? 'badge-warning' : 'badge-muted'}`}>{b.isOutsourced ? 'Outsourced' : 'Direct'}</span>
+                      {b.withDriver && <span className="badge badge-muted" style={{ marginLeft: '0.3rem' }}>With Driver</span>}
+                    </td>
                     <td>
                       <div style={{ display: 'flex', gap: '0.4rem' }}>
                         <Link href={`/admin/bookings/${b.id}`} className="btn btn-primary btn-sm">Manage</Link>
@@ -223,6 +228,7 @@ export default function BookingsPage() {
                   <code style={{ color: 'var(--gold)', fontSize: '0.72rem' }}>{b.id.slice(0, 8).toUpperCase()}</code>
                   <span style={{ color: 'var(--text-muted)' }}>{fmtDate(b.startDate)}</span>
                   {b.isOutsourced && <span className="badge badge-warning" style={{ fontSize: '0.65rem' }}>Outsourced</span>}
+                  {b.withDriver && <span className="badge badge-muted" style={{ fontSize: '0.65rem' }}>With Driver</span>}
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontWeight: 700, color: 'var(--gold)' }}>{b.finalAmount > 0 ? `LKR ${b.finalAmount.toLocaleString()}` : '—'}</span>
@@ -466,6 +472,20 @@ export default function BookingsPage() {
                     )}
                   </div>
                 )}
+
+                {/* With Driver */}
+                <div className="form-group">
+                  <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={form.withDriver}
+                      onChange={e => setForm({ ...form, withDriver: e.target.checked })}
+                      style={{ width: 16, height: 16, accentColor: 'var(--gold)', cursor: 'pointer' }}
+                    />
+                    With Driver
+                    <span style={{ fontWeight: 400, color: 'var(--text-muted)', fontSize: '0.72rem' }}>(driver fee set at completion)</span>
+                  </label>
+                </div>
 
                 {/* Notes */}
                 <div className="form-group">
