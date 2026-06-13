@@ -433,6 +433,8 @@ router.put('/:id', authMiddleware, async (req, res) => {
       paymentMethod: 'payment_method',
       cashAmount: 'cash_amount',
       creditAmount: 'credit_amount',
+      withDriver: 'with_driver',
+      driverFee: 'driver_fee',
     };
 
     for (const [key, value] of Object.entries(req.body)) {
@@ -520,6 +522,8 @@ function mapBookingToResponse(b: any) {
     paymentMethod: b.payment_method,
     cashAmount: b.cash_amount,
     creditAmount: b.credit_amount,
+    withDriver: b.with_driver,
+    driverFee: b.driver_fee,
     createdAt: b.created_at,
   };
 }
