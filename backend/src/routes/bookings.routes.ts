@@ -141,6 +141,7 @@ router.post('/', authMiddleware, async (req, res) => {
 
     const defaultPricePerDay = vehicleData?.price_per_day || 0;
     const effectivePricePerDay = Number(pricePerDay) || defaultPricePerDay;
+    const defaultPricePerKm = vehicleData?.price_per_km || Number(pricePerKm) || 0;
 
     // Resolve free_km — use per-booking rate overrides if provided, else global config
     let resolvedFreeKm: number | null = null;
@@ -175,6 +176,7 @@ router.post('/', authMiddleware, async (req, res) => {
         price_per_km: Number(pricePerKm) || vehicleData?.price_per_km || 0,
         price_per_day: effectivePricePerDay,
         default_price_per_day: defaultPricePerDay,
+        default_price_per_km: defaultPricePerKm,
         billing_mode: 'per_day',
         free_km: resolvedFreeKm,
         booking_first_day_free_km: firstDayFreeKm != null && firstDayFreeKm !== '' ? Number(firstDayFreeKm) : null,
