@@ -11,6 +11,7 @@ import reportsRoutes from './routes/reports.routes';
 import taskRoutes from './routes/tasks.routes';
 import reviewRoutes from './routes/reviews.routes';
 import creditRoutes from './routes/credits.routes';
+import agreementRoutes from './routes/agreements.routes';
 
 const app = express();
 
@@ -44,6 +45,7 @@ app.use('/api/reports', reportsRoutes);
 app.use('/api/tasks',   taskRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/credits', creditRoutes);
+app.use('/api/agreements', agreementRoutes);
 
 app.get('/api/health', (_, res) => res.json({ status: 'ok', timestamp: new Date() }));
 

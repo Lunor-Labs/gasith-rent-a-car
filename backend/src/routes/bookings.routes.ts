@@ -63,7 +63,7 @@ router.get('/stats/revenue', authMiddleware, async (req, res) => {
 
       const { data, error } = await supabase
         .from('bookings')
-        .select('end_date, final_amount, commission_amount, is_outsourced')
+        .select('end_date, final_amount, driver_fee, commission_amount, is_outsourced')
         .eq('status', 'completed')
         .gte('end_date', fromStr);
 
@@ -79,7 +79,7 @@ router.get('/stats/revenue', authMiddleware, async (req, res) => {
       for (const b of data || []) {
         const s = (b.end_date as string).slice(0, 10);
         if (days[s]) {
-          const income = b.is_outsourced ? (b.commission_amount || 0) : (b.final_amount || 0);
+          const income = b.is_outsourced ? (b.commission_amount || 0) : ((b.final_amount || 0) - (b.driver_fee || 0));
           days[s].totalRevenue += income;
           days[s].totalBookings++;
         }
@@ -141,6 +141,7 @@ router.post('/', authMiddleware, async (req, res) => {
 
     const defaultPricePerDay = vehicleData?.price_per_day || 0;
     const effectivePricePerDay = Number(pricePerDay) || defaultPricePerDay;
+    const defaultPricePerKm = vehicleData?.price_per_km || Number(pricePerKm) || 0;
 
     // Resolve free_km — use per-booking rate overrides if provided, else global config
     let resolvedFreeKm: number | null = null;
@@ -175,6 +176,7 @@ router.post('/', authMiddleware, async (req, res) => {
         price_per_km: Number(pricePerKm) || vehicleData?.price_per_km || 0,
         price_per_day: effectivePricePerDay,
         default_price_per_day: defaultPricePerDay,
+        default_price_per_km: defaultPricePerKm,
         billing_mode: 'per_day',
         free_km: resolvedFreeKm,
         booking_first_day_free_km: firstDayFreeKm != null && firstDayFreeKm !== '' ? Number(firstDayFreeKm) : null,
@@ -282,16 +284,21 @@ router.put('/:id/complete', authMiddleware, async (req, res) => {
     const defaultPricePerDay = booking.default_price_per_day || booking.price_per_day || 0;
     const pricePerDay = booking.price_per_day || 0;
     const pricePerKm = booking.price_per_km || 0;
+    // Old bookings have no rack KM rate stored — fall back to the charged rate
+    // so kmRateDiscount is 0 and base_amount is unchanged for them.
+    const defaultPricePerKm = booking.default_price_per_km ?? pricePerKm;
 
     extraKm = Math.max(0, totalKm - resolvedFreeKm);
     extraKmCharge = extraKm * pricePerKm;
 
     const defaultExtraKm = Math.max(0, totalKm - computedDefaultFreeKm);
-    const defaultExtraKmCharge = defaultExtraKm * pricePerKm;
+    const defaultExtraKmCharge = defaultExtraKm * defaultPricePerKm;
     baseAmount = days * defaultPricePerDay + defaultExtraKmCharge;
 
     const rateDiscount = (defaultPricePerDay - pricePerDay) * days;
-    const kmDiscount = defaultExtraKmCharge - extraKmCharge;
+    const kmRateDiscount = (defaultPricePerKm - pricePerKm) * extraKm;
+    const freeKmBonus = (resolvedFreeKm - computedDefaultFreeKm) * defaultPricePerKm;
+    const kmDiscount = kmRateDiscount + freeKmBonus;
     const extraDiscount = Number(additionalDiscount) || 0;
     computedDiscount = Math.max(0, rateDiscount + kmDiscount) + extraDiscount;
 
@@ -373,6 +380,12 @@ router.put('/:id/complete', authMiddleware, async (req, res) => {
         });
     }
 
+    // For outsourced vehicles, admin income is the commission only — not the full final_amount.
+    // For owned vehicles, the driver fee is a pass-through and is NOT counted as revenue.
+    const adminIncome = booking.is_outsourced
+      ? (resolvedCommissionAmount || 0)
+      : finalAmount - resolvedDriverFee;
+
     const monthKey = format(new Date(), 'yyyy-MM');
     const { data: revDoc } = await supabase
       .from('revenue')
@@ -384,7 +397,7 @@ router.put('/:id/complete', authMiddleware, async (req, res) => {
       await supabase
         .from('revenue')
         .update({
-          total_revenue: (revDoc.total_revenue || 0) + finalAmount,
+          total_revenue: (revDoc.total_revenue || 0) + adminIncome,
           total_bookings: (revDoc.total_bookings || 0) + 1,
           total_km: (revDoc.total_km || 0) + totalKm,
           updated_at: new Date().toISOString(),
@@ -395,7 +408,7 @@ router.put('/:id/complete', authMiddleware, async (req, res) => {
         .from('revenue')
         .insert({
           month: monthKey,
-          total_revenue: finalAmount,
+          total_revenue: adminIncome,
           total_bookings: 1,
           total_km: totalKm,
         });
@@ -507,6 +520,7 @@ function mapBookingToResponse(b: any) {
     pricePerKm: b.price_per_km,
     pricePerDay: b.price_per_day,
     defaultPricePerDay: b.default_price_per_day,
+    defaultPricePerKm: b.default_price_per_km,
     billingMode: b.billing_mode || 'per_km',
     defaultFreeKm: b.default_free_km,
     freeKm: b.free_km,
@@ -532,6 +546,8 @@ function mapBookingToResponse(b: any) {
     creditAmount: b.credit_amount,
     withDriver: b.with_driver,
     driverFee: b.driver_fee,
+    agreementUrl: b.agreement_url,
+    agreementSignedAt: b.agreement_signed_at,
     createdAt: b.created_at,
   };
 }

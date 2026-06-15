@@ -4,6 +4,7 @@ import { useSearchParams } from 'next/navigation';
 import { getBookings, getCustomers, getVehicles, createBooking, deleteBooking, getPricingConfig } from '@/lib/api';
 import CustomerFormModal from '@/components/CustomerFormModal';
 import SearchableCustomerSelect from '@/components/SearchableCustomerSelect';
+import AgreementSignModal from '@/components/AgreementSignModal';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { Plus, Trash2, CalendarDays, Route, CalendarCheck, CalendarPlus, Users, Car, Gauge, Banknote, NotebookPen } from 'lucide-react';
@@ -23,6 +24,7 @@ export default function BookingsPage() {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [agreementBooking, setAgreementBooking] = useState<{ id: string; customerName: string } | null>(null);
   const [filter, setFilter] = useState('all');
   const [customerModalOpen, setCustomerModalOpen] = useState(false);
   const [form, setForm] = useState({
@@ -75,7 +77,7 @@ export default function BookingsPage() {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault(); setSubmitting(true);
     try {
-      await createBooking({
+      const res = await createBooking({
         customerId: form.customerId,
         vehicleId: form.vehicleId,
         startDate: form.startDate,
@@ -95,7 +97,9 @@ export default function BookingsPage() {
       toast.success('Booking created');
       setModalOpen(false);
       setCustomerModalOpen(false);
+      const customerName = customers.find(c => c.id === form.customerId)?.name || 'Customer';
       setForm({ customerId: '', vehicleId: '', startDate: '', endDate: '', startMeterReading: '', pricePerDay: '', pricePerKm: '', firstDayFreeKm: '', subsequentDayFreeKm: '', notes: '', withDriver: false });
+      setAgreementBooking({ id: res.data.id, customerName });
       load();
     } catch (err: any) { toast.error(err?.response?.data?.error || 'Failed to create booking'); }
     finally { setSubmitting(false); }
@@ -518,6 +522,15 @@ export default function BookingsPage() {
         onClose={() => setCustomerModalOpen(false)}
         onSaved={handleCustomerSaved}
       />
+
+      {agreementBooking && (
+        <AgreementSignModal
+          bookingId={agreementBooking.id}
+          customerName={agreementBooking.customerName}
+          onClose={() => { setAgreementBooking(null); toast('Agreement skipped — get signature from booking detail', { icon: 'ℹ️' }); }}
+          onSigned={() => { setAgreementBooking(null); load(); }}
+        />
+      )}
     </div>
   );
 }

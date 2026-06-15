@@ -11,7 +11,7 @@ router.get('/financial', authMiddleware, async (req, res) => {
 
     let query = supabase
       .from('bookings')
-      .select('end_date, start_date, final_amount, commission_amount, is_outsourced')
+      .select('end_date, start_date, final_amount, driver_fee, commission_amount, is_outsourced')
       .eq('status', 'completed')
       .order('end_date', { ascending: false });
 
@@ -40,7 +40,7 @@ router.get('/financial', authMiddleware, async (req, res) => {
         monthMap[month].commissionIncome += Number(b.commission_amount) || 0;
         monthMap[month].outsourcedBookings++;
       } else {
-        monthMap[month].ownedRevenue += Number(b.final_amount) || 0;
+        monthMap[month].ownedRevenue += (Number(b.final_amount) || 0) - (Number(b.driver_fee) || 0);
         monthMap[month].ownedBookings++;
       }
     }
@@ -142,6 +142,7 @@ router.get('/bookings', authMiddleware, async (req, res) => {
     res.json((data || []).map((b: any) => ({
       id: b.id,
       customerName: b.customers?.name || '—',
+      notes: b.notes,
       vehicleName: b.vehicles?.name || '—',
       vehiclePlate: b.vehicles?.plate || '',
       isOutsourced: b.is_outsourced,
@@ -152,7 +153,7 @@ router.get('/bookings', authMiddleware, async (req, res) => {
       discountAmount: b.discount_amount,
       finalAmount: b.final_amount,
       commissionAmount: b.commission_amount,
-      adminIncome: b.is_outsourced ? (b.commission_amount || 0) : (b.final_amount || 0),
+      adminIncome: b.is_outsourced ? (b.commission_amount || 0) : ((b.final_amount || 0) - (b.driver_fee || 0)),
     })));
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -176,7 +177,7 @@ router.get('/vehicles', authMiddleware, async (req, res) => {
 
     let bQuery = supabase
       .from('bookings')
-      .select('vehicle_id, final_amount, commission_amount, total_km, is_outsourced, start_date, end_date')
+      .select('vehicle_id, final_amount, driver_fee, commission_amount, total_km, is_outsourced, start_date, end_date')
       .eq('status', 'completed');
 
     if (from)      bQuery = bQuery.gte('end_date', from as string);
@@ -190,9 +191,9 @@ router.get('/vehicles', authMiddleware, async (req, res) => {
       const vBookings = (bookings || []).filter(b => b.vehicle_id === v.id);
       const totalKm = vBookings.reduce((s, b) => s + (b.total_km || 0), 0);
       const adminIncome = vBookings.reduce(
-        (s, b) => s + (b.is_outsourced ? (b.commission_amount || 0) : (b.final_amount || 0)), 0
+        (s, b) => s + (b.is_outsourced ? (b.commission_amount || 0) : ((b.final_amount || 0) - (b.driver_fee || 0))), 0
       );
-      const totalRevenue = vBookings.reduce((s, b) => s + (b.final_amount || 0), 0);
+      const totalRevenue = vBookings.reduce((s, b) => s + ((b.final_amount || 0) - (b.driver_fee || 0)), 0);
 
       const daysRented = vBookings.reduce((s, b) => {
         if (!b.start_date || !b.end_date) return s;
