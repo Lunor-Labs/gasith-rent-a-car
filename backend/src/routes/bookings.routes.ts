@@ -63,7 +63,7 @@ router.get('/stats/revenue', authMiddleware, async (req, res) => {
 
       const { data, error } = await supabase
         .from('bookings')
-        .select('end_date, final_amount, commission_amount, is_outsourced')
+        .select('end_date, final_amount, driver_fee, commission_amount, is_outsourced')
         .eq('status', 'completed')
         .gte('end_date', fromStr);
 
@@ -79,7 +79,7 @@ router.get('/stats/revenue', authMiddleware, async (req, res) => {
       for (const b of data || []) {
         const s = (b.end_date as string).slice(0, 10);
         if (days[s]) {
-          const income = b.is_outsourced ? (b.commission_amount || 0) : (b.final_amount || 0);
+          const income = b.is_outsourced ? (b.commission_amount || 0) : ((b.final_amount || 0) - (b.driver_fee || 0));
           days[s].totalRevenue += income;
           days[s].totalBookings++;
         }
@@ -373,10 +373,11 @@ router.put('/:id/complete', authMiddleware, async (req, res) => {
         });
     }
 
-    // For outsourced vehicles, admin income is the commission only — not the full final_amount
+    // For outsourced vehicles, admin income is the commission only — not the full final_amount.
+    // For owned vehicles, the driver fee is a pass-through and is NOT counted as revenue.
     const adminIncome = booking.is_outsourced
       ? (resolvedCommissionAmount || 0)
-      : finalAmount;
+      : finalAmount - resolvedDriverFee;
 
     const monthKey = format(new Date(), 'yyyy-MM');
     const { data: revDoc } = await supabase
