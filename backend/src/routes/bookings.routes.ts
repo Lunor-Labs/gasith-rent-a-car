@@ -520,6 +520,7 @@ function mapBookingToResponse(b: any) {
     pricePerKm: b.price_per_km,
     pricePerDay: b.price_per_day,
     defaultPricePerDay: b.default_price_per_day,
+    defaultPricePerKm: b.default_price_per_km,
     billingMode: b.billing_mode || 'per_km',
     defaultFreeKm: b.default_free_km,
     freeKm: b.free_km,
