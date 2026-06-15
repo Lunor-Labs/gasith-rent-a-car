@@ -284,16 +284,21 @@ router.put('/:id/complete', authMiddleware, async (req, res) => {
     const defaultPricePerDay = booking.default_price_per_day || booking.price_per_day || 0;
     const pricePerDay = booking.price_per_day || 0;
     const pricePerKm = booking.price_per_km || 0;
+    // Old bookings have no rack KM rate stored — fall back to the charged rate
+    // so kmRateDiscount is 0 and base_amount is unchanged for them.
+    const defaultPricePerKm = booking.default_price_per_km ?? pricePerKm;
 
     extraKm = Math.max(0, totalKm - resolvedFreeKm);
     extraKmCharge = extraKm * pricePerKm;
 
     const defaultExtraKm = Math.max(0, totalKm - computedDefaultFreeKm);
-    const defaultExtraKmCharge = defaultExtraKm * pricePerKm;
+    const defaultExtraKmCharge = defaultExtraKm * defaultPricePerKm;
     baseAmount = days * defaultPricePerDay + defaultExtraKmCharge;
 
     const rateDiscount = (defaultPricePerDay - pricePerDay) * days;
-    const kmDiscount = defaultExtraKmCharge - extraKmCharge;
+    const kmRateDiscount = (defaultPricePerKm - pricePerKm) * extraKm;
+    const freeKmBonus = (resolvedFreeKm - computedDefaultFreeKm) * defaultPricePerKm;
+    const kmDiscount = kmRateDiscount + freeKmBonus;
     const extraDiscount = Number(additionalDiscount) || 0;
     computedDiscount = Math.max(0, rateDiscount + kmDiscount) + extraDiscount;
 
