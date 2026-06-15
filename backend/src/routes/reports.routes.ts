@@ -142,6 +142,7 @@ router.get('/bookings', authMiddleware, async (req, res) => {
     res.json((data || []).map((b: any) => ({
       id: b.id,
       customerName: b.customers?.name || '—',
+      notes: b.notes,
       vehicleName: b.vehicles?.name || '—',
       vehiclePlate: b.vehicles?.plate || '',
       isOutsourced: b.is_outsourced,

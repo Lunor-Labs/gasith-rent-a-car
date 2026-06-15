@@ -529,7 +529,10 @@ export default function ReportsPage() {
                 {bookings.map(b => (
                   <tr key={b.id}>
                     <td style={{ color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{fmtDate(b.endDate)}</td>
-                    <td style={{ fontWeight: 600, fontSize: '0.88rem' }}>{b.customerName}</td>
+                    <td style={{ fontWeight: 600, fontSize: '0.88rem' }}>
+                      {b.customerName}
+                      {b.notes && <div style={{ fontSize: '0.72rem', fontWeight: 400, color: 'var(--text-muted)', marginTop: 2, fontStyle: 'italic' }}>{b.notes}</div>}
+                    </td>
                     <td>
                       <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>{b.vehicleName}</div>
                       {b.vehiclePlate && <span className="plate-tag" style={{ fontSize: '0.72rem' }}>{b.vehiclePlate}</span>}
@@ -559,7 +562,10 @@ export default function ReportsPage() {
             {bookings.map(b => (
               <div key={b.id} className="card" style={{ padding: '0.9rem 1rem', display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div style={{ fontWeight: 700, fontSize: '0.92rem' }}>{b.customerName}</div>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '0.92rem' }}>{b.customerName}</div>
+                    {b.notes && <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2, fontStyle: 'italic' }}>{b.notes}</div>}
+                  </div>
                   <span className={`badge ${b.isOutsourced ? 'badge-warning' : 'badge-info'}`} style={{ fontSize: '0.7rem' }}>
                     {b.isOutsourced ? '3rd Party' : 'Own'}
                   </span>
