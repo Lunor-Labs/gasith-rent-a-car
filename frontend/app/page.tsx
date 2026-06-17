@@ -504,7 +504,7 @@ export default function LandingPage() {
               WhatsApp Us Now
             </a>
             <div style={{ color: C.onGold }}>
-              <div style={{ fontWeight:900, fontSize:'1.5rem' }}>+94 XX XXX XXXX</div>
+              <div style={{ fontWeight:900, fontSize:'1.5rem' }}>+94 77 455 87 80</div>
               <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:'0.5rem',
                 marginTop:'0.5rem', opacity:0.7, fontSize:'0.75rem', textTransform:'uppercase',
                 letterSpacing:'0.1em', fontWeight:700 }}>
@@ -532,7 +532,7 @@ export default function LandingPage() {
             </div>
           </div>
           <nav style={{ display:'flex', gap:'2rem', flexWrap:'wrap' }}>
-            {[['Browse Fleet','#fleet'],['How It Works','#how'],['WhatsApp Support', waHref],['Admin Login','/login']].map(([label, href]) => (
+            {[['Browse Fleet','#fleet'],['How It Works','#how'],['WhatsApp Support', waHref]].map(([label, href]) => (
               <a key={label} href={href} target={href.startsWith('http') ? '_blank' : undefined}
                 style={{ fontFamily:'Inter,sans-serif', fontSize:'0.75rem', textTransform:'uppercase',
                   letterSpacing:'0.1em', color:'#71717a', textDecoration:'none', transition:'color 0.3s' }}
