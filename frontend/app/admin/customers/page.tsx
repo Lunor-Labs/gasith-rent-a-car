@@ -7,7 +7,7 @@ import { Plus, Pencil, Trash2, Users, Eye, Wallet } from 'lucide-react';
 import CustomerFormModal from '@/components/CustomerFormModal';
 import CreditAccountModal from '@/components/CreditAccountModal';
 
-type Customer = { id: string; name: string; phone: string; email: string; address: string; nicNumber: string; nicFrontUrl: string; nicBackUrl: string; drivingLicenseUrl: string; isActive?: boolean; createdAt: any; };
+type Customer = { id: string; name: string; phone: string; email: string; address: string; nicNumber: string; nicFrontUrl: string; nicBackUrl: string; drivingLicenseUrl: string; isActive?: boolean; isBlacklisted?: boolean; blacklistReason?: string; createdAt: any; };
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -103,6 +103,7 @@ export default function CustomersPage() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                         <span style={{ fontWeight: 600 }}>{c.name}</span>
                         {c.isActive === false && <span className="badge badge-muted" style={{ fontSize: '0.62rem' }}>Inactive</span>}
+                        {c.isBlacklisted && <span className="badge badge-danger" style={{ fontSize: '0.62rem' }}>Blacklisted</span>}
                       </div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{c.email}</div>
                     </td>
@@ -148,6 +149,7 @@ export default function CustomersPage() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                       <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{c.name}</span>
                       {c.isActive === false && <span className="badge badge-muted" style={{ fontSize: '0.62rem' }}>Inactive</span>}
+                      {c.isBlacklisted && <span className="badge badge-danger" style={{ fontSize: '0.62rem' }}>Blacklisted</span>}
                     </div>
                     <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 2 }}>{c.phone}</div>
                   </div>

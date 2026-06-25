@@ -131,6 +131,29 @@ router.delete('/:id', authMiddleware, async (req, res) => {
   }
 });
 
+// PATCH toggle blacklist status for a customer
+router.patch('/:id/blacklist', authMiddleware, async (req, res) => {
+  try {
+    const { blacklisted, reason } = req.body as { blacklisted: boolean; reason?: string };
+
+    const updateData: any = {
+      is_blacklisted: blacklisted,
+      blacklist_reason: reason ?? '',
+      blacklisted_at: blacklisted ? new Date().toISOString() : null,
+    };
+
+    const { error } = await supabase
+      .from('customers')
+      .update(updateData)
+      .eq('id', req.params.id);
+
+    if (error) throw error;
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET bookings for a customer
 router.get('/:id/bookings', authMiddleware, async (req, res) => {
   try {
@@ -182,6 +205,9 @@ function mapCustomerToResponse(c: any) {
     nicBackUrl: c.nic_back_url,
     drivingLicenseUrl: c.driving_license_url,
     isActive: c.is_active !== false,
+    isBlacklisted: c.is_blacklisted === true,
+    blacklistedAt: c.blacklisted_at ?? null,
+    blacklistReason: c.blacklist_reason ?? '',
     createdAt: c.created_at,
   };
 }

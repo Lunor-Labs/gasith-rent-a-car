@@ -10,7 +10,7 @@ import toast from 'react-hot-toast';
 import { Plus, Trash2, CalendarDays, Route, CalendarCheck, CalendarPlus, Users, Car, Gauge, Banknote, NotebookPen } from 'lucide-react';
 
 type Booking = { id: string; customerId: string; vehicleId: string; status: string; startDate: any; endDate: any; finalAmount: number; totalKm: number; isOutsourced: boolean; billingMode: string; notes: string; withDriver: boolean; };
-type Customer = { id: string; name: string; phone: string; };
+type Customer = { id: string; name: string; phone: string; isBlacklisted?: boolean; blacklistReason?: string; };
 type Vehicle = { id: string; name: string; plate: string; isAvailable: boolean; pricePerKm: number; pricePerDay: number; lastMeterReading: number; isOutsourced: boolean; commissionRate: number; };
 
 const STATUS_COLORS: Record<string, string> = { active: 'badge-info', completed: 'badge-success', pending: 'badge-warning', cancelled: 'badge-danger' };
