@@ -1,8 +1,8 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, AlertTriangle } from 'lucide-react';
 
-type Customer = { id: string; name: string; phone: string };
+type Customer = { id: string; name: string; phone: string; isBlacklisted?: boolean; blacklistReason?: string };
 
 interface SearchableCustomerSelectProps {
   customers: Customer[];
@@ -25,12 +25,13 @@ export default function SearchableCustomerSelect({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const selectedCustomer = customers.find(c => c.id === selectedId);
+  const isSelectedBlacklisted = selectedCustomer?.isBlacklisted === true;
 
   const filteredCustomers = customers.filter(c =>
-    c.name.toLowerCase().includes(searchQuery.toLowerCase())
+    c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    c.phone?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
@@ -45,7 +46,6 @@ export default function SearchableCustomerSelect({
     }
   }, [isOpen]);
 
-  // Focus input when dropdown opens
   useEffect(() => {
     if (isOpen && inputRef.current) {
       inputRef.current.focus();
@@ -58,13 +58,8 @@ export default function SearchableCustomerSelect({
     setSearchQuery('');
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value);
-  };
-
   return (
     <div ref={containerRef} style={{ position: 'relative', width: '100%' }}>
-      {/* Input / Display */}
       <button
         type="button"
         onClick={() => !disabled && setIsOpen(!isOpen)}
@@ -77,14 +72,19 @@ export default function SearchableCustomerSelect({
           width: '100%',
           padding: '0.7rem 1rem',
           background: disabled ? 'var(--bg-elevated)' : 'var(--bg-elevated)',
-          border: isOpen ? '1px solid var(--gold)' : '1px solid var(--border)',
+          border: isOpen ? '1px solid var(--gold)' : isSelectedBlacklisted ? '1px solid rgba(239,68,68,0.5)' : '1px solid var(--border)',
           color: selectedCustomer ? 'var(--text-primary)' : 'var(--text-muted)',
           cursor: disabled ? 'not-allowed' : 'pointer',
           opacity: disabled ? 0.6 : 1,
         }}
       >
-        <span style={{ textAlign: 'left', flex: 1 }}>
-          {selectedCustomer ? `${selectedCustomer.name} — ${selectedCustomer.phone}` : 'Select a customer...'}
+        <span style={{ textAlign: 'left', flex: 1, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          {selectedCustomer ? (
+            <>
+              {isSelectedBlacklisted && <AlertTriangle size={13} strokeWidth={1.5} style={{ color: '#ef4444', flexShrink: 0 }} />}
+              {selectedCustomer.name} — {selectedCustomer.phone}
+            </>
+          ) : 'Select a customer...'}
         </span>
         <ChevronDown
           size={16}
@@ -98,6 +98,17 @@ export default function SearchableCustomerSelect({
           }}
         />
       </button>
+
+      {/* Blacklist warning shown below the select */}
+      {isSelectedBlacklisted && (
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', marginTop: '0.4rem', padding: '0.55rem 0.75rem', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 'var(--radius-sm)' }}>
+          <AlertTriangle size={13} strokeWidth={1.5} style={{ color: '#ef4444', flexShrink: 0, marginTop: 1 }} />
+          <div style={{ fontSize: '0.78rem', color: '#ef4444' }}>
+            <strong>Blacklisted customer.</strong>
+            {selectedCustomer?.blacklistReason ? ` Reason: ${selectedCustomer.blacklistReason}` : ' Proceed with caution.'}
+          </div>
+        </div>
+      )}
 
       {/* Dropdown */}
       {isOpen && (
@@ -115,7 +126,6 @@ export default function SearchableCustomerSelect({
             overflow: 'hidden',
           }}
         >
-          {/* Search Input */}
           <div
             style={{
               padding: '0.5rem',
@@ -126,9 +136,9 @@ export default function SearchableCustomerSelect({
             <input
               ref={inputRef}
               type="text"
-              placeholder="Search by name..."
+              placeholder="Search by name or phone..."
               value={searchQuery}
-              onChange={handleInputChange}
+              onChange={e => setSearchQuery(e.target.value)}
               className="form-input"
               style={{
                 width: '100%',
@@ -143,25 +153,10 @@ export default function SearchableCustomerSelect({
             />
           </div>
 
-          {/* Customer List */}
-          <div
-            style={{
-              maxHeight: '240px',
-              overflowY: 'auto',
-            }}
-          >
+          <div style={{ maxHeight: '240px', overflowY: 'auto' }}>
             {filteredCustomers.length === 0 ? (
-              <div
-                style={{
-                  padding: '1rem',
-                  textAlign: 'center',
-                  color: 'var(--text-muted)',
-                  fontSize: '0.85rem',
-                }}
-              >
-                {customers.length === 0
-                  ? 'No customers found'
-                  : `No customers matching "${searchQuery}"`}
+              <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                {customers.length === 0 ? 'No customers found' : `No customers matching "${searchQuery}"`}
               </div>
             ) : (
               filteredCustomers.map(customer => (
@@ -179,24 +174,28 @@ export default function SearchableCustomerSelect({
                     cursor: 'pointer',
                     transition: 'background 0.15s',
                     color: selectedId === customer.id ? 'var(--gold)' : 'var(--text-primary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '0.5rem',
                   }}
                   onMouseEnter={e => {
-                    if (selectedId !== customer.id) {
-                      (e.target as HTMLElement).style.background = 'var(--bg-card)';
-                    }
+                    if (selectedId !== customer.id) (e.currentTarget.style.background = 'var(--bg-card)');
                   }}
                   onMouseLeave={e => {
-                    if (selectedId !== customer.id) {
-                      (e.target as HTMLElement).style.background = 'transparent';
-                    }
+                    if (selectedId !== customer.id) (e.currentTarget.style.background = 'transparent');
                   }}
                 >
-                  <div style={{ fontWeight: selectedId === customer.id ? 600 : 500, fontSize: '0.9rem' }}>
-                    {customer.name}
+                  <div>
+                    <div style={{ fontWeight: selectedId === customer.id ? 600 : 500, fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      {customer.isBlacklisted && <AlertTriangle size={11} strokeWidth={1.5} style={{ color: '#ef4444', flexShrink: 0 }} />}
+                      {customer.name}
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>{customer.phone}</div>
                   </div>
-                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                    {customer.phone}
-                  </div>
+                  {customer.isBlacklisted && (
+                    <span className="badge badge-danger" style={{ fontSize: '0.62rem', flexShrink: 0 }}>Blacklisted</span>
+                  )}
                 </button>
               ))
             )}
@@ -204,15 +203,8 @@ export default function SearchableCustomerSelect({
         </div>
       )}
 
-      {/* Required indicator (hidden but needed for form validation) */}
       {required && !selectedId && (
-        <input
-          type="hidden"
-          value=""
-          required
-          aria-hidden="true"
-          style={{ display: 'none' }}
-        />
+        <input type="hidden" value="" required aria-hidden="true" style={{ display: 'none' }} />
       )}
     </div>
   );
