@@ -33,6 +33,8 @@ export const createCustomer = (data: FormData) => API.post('/customers', data, {
 export const updateCustomer = (id: string, data: FormData) => API.put(`/customers/${id}`, data, { headers: { 'Content-Type': 'multipart/form-data' } });
 export const deleteCustomer = (id: string) => API.delete(`/customers/${id}`);
 export const getCustomerBookings = (id: string) => API.get(`/customers/${id}/bookings`);
+export const toggleBlacklist = (id: string, data: { blacklisted: boolean; reason?: string }) =>
+  API.patch(`/customers/${id}/blacklist`, data);
 
 // ─── Bookings ─────────────────────────────────────────────────────────────────
 export const getBookings = (params?: { limit?: number }) => API.get('/bookings', { params });
