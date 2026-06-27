@@ -577,8 +577,9 @@ export default function ReportsPage() {
                   </div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{fmtDate(b.endDate)}</div>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, paddingTop: 6, borderTop: '1px solid var(--border-subtle)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, paddingTop: 6, borderTop: '1px solid var(--border-subtle)' }}>
                   <StatLine label="Trip Total" value={fmtMoney(b.finalAmount)} />
+                  <StatLine label="KM" value={`${(b.totalKm || 0).toLocaleString()} km`} />
                   <StatLine
                     label={b.isOutsourced ? 'Commission' : 'Admin Income'}
                     value={fmtMoney(b.adminIncome)}
