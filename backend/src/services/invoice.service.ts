@@ -191,24 +191,24 @@ export async function generateInvoicePDF({ booking, customer, vehicle }: Invoice
   doc.text(fmt(endDate), detailCol3, y);
   y += 7;
 
-  // Row: No of Days
+  // Row: No of Days | Total KM
   setFont('bold', 7.5, MUTED);
   doc.text('NO OF DAYS', ML, y);
+  if (totalKm > 0) doc.text('TOTAL KM', detailCol2, y);
   y += 4;
   setFont('bold', 9.5, DARK);
   doc.text(`${days} day${days > 1 ? 's' : ''}`, ML, y);
+  if (totalKm > 0) doc.text(`${totalKm.toLocaleString()} km`, detailCol2, y);
   y += 7;
 
   if (!isOutsourced && (startReading || endReading)) {
     setFont('bold', 7.5, MUTED);
     doc.text('START ODOMETER', ML, y);
     doc.text('END ODOMETER', detailCol2, y);
-    doc.text('TOTAL KM', detailCol3, y);
     y += 4;
     setFont('normal', 9, DARK);
     doc.text(startReading != null ? `${Number(startReading).toLocaleString()} km` : '—', ML, y);
     doc.text(endReading != null ? `${Number(endReading).toLocaleString()} km` : '—', detailCol2, y);
-    doc.text(totalKm > 0 ? `${totalKm.toLocaleString()} km` : '—', detailCol3, y);
     y += 7;
   }
 
