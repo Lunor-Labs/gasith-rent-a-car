@@ -543,6 +543,12 @@ export default function BookingDetailPage() {
                 </div>
               </>
             )}
+            {booking.totalKm > 0 && (
+              <div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Total Travelled KM</div>
+                <div style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--gold)' }}>{booking.totalKm.toLocaleString()} km</div>
+              </div>
+            )}
           </div>
         </div>
 
