@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { supabase } from '../config/supabase';
+import { supabase, MAX_ROWS } from '../config/supabase';
 import { authMiddleware } from '../middleware/auth.middleware';
 
 const router = Router();
@@ -11,13 +11,16 @@ router.get('/', authMiddleware, async (_req, res) => {
       supabase
         .from('bookings')
         .select('customer_id, credit_amount, end_date, created_at')
-        .gt('credit_amount', 0),
+        .gt('credit_amount', 0)
+        .limit(MAX_ROWS),
       supabase
         .from('credit_payments')
-        .select('customer_id, amount, paid_at'),
+        .select('customer_id, amount, paid_at')
+        .limit(MAX_ROWS),
       supabase
         .from('customers')
-        .select('id, name, phone, email, is_active'),
+        .select('id, name, phone, email, is_active')
+        .limit(MAX_ROWS),
     ]);
 
     if (bookingsRes.error) throw bookingsRes.error;
@@ -86,12 +89,14 @@ router.get('/:customerId', authMiddleware, async (req, res) => {
         .select('id, credit_amount, cash_amount, payment_method, final_amount, end_date, created_at, vehicle_id, status')
         .eq('customer_id', customerId)
         .gt('credit_amount', 0)
-        .order('end_date', { ascending: false, nullsFirst: false }),
+        .order('end_date', { ascending: false, nullsFirst: false })
+        .limit(MAX_ROWS),
       supabase
         .from('credit_payments')
         .select('*')
         .eq('customer_id', customerId)
-        .order('paid_at', { ascending: false }),
+        .order('paid_at', { ascending: false })
+        .limit(MAX_ROWS),
     ]);
 
     if (customerRes.error || !customerRes.data) return res.status(404).json({ error: 'Customer not found' });

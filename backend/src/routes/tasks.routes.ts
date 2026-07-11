@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { supabase } from '../config/supabase';
+import { supabase, MAX_ROWS } from '../config/supabase';
 import { authMiddleware } from '../middleware/auth.middleware';
 
 const router = Router();
@@ -9,7 +9,8 @@ router.get('/', authMiddleware, async (req, res) => {
     const { data, error } = await supabase
       .from('tasks')
       .select('*')
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: true })
+      .limit(MAX_ROWS);
     if (error) throw error;
     res.json((data || []).map((t: any) => ({
       id:       t.id,

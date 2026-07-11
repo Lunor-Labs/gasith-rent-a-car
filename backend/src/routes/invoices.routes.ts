@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { supabase, STORAGE_BUCKET } from '../config/supabase';
+import { supabase, STORAGE_BUCKET, MAX_ROWS } from '../config/supabase';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { generateInvoicePDF } from '../services/invoice.service';
 import { v4 as uuidv4 } from 'uuid';
@@ -12,7 +12,8 @@ router.get('/', authMiddleware, async (req, res) => {
     const { data, error } = await supabase
       .from('invoices')
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(MAX_ROWS);
 
     if (error) throw error;
     res.json((data || []).map(mapInvoiceToResponse));

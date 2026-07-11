@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { supabase } from '../config/supabase';
+import { supabase, MAX_ROWS } from '../config/supabase';
 import { authMiddleware } from '../middleware/auth.middleware';
 
 const router = Router();
@@ -13,7 +13,8 @@ router.get('/financial', authMiddleware, async (req, res) => {
       .from('bookings')
       .select('end_date, start_date, final_amount, driver_fee, commission_amount, is_outsourced')
       .eq('status', 'completed')
-      .order('end_date', { ascending: false });
+      .order('end_date', { ascending: false })
+      .limit(MAX_ROWS);
 
     if (from)      query = query.gte('end_date', from as string);
     if (to)        query = query.lte('end_date', `${to}T23:59:59`);
@@ -69,7 +70,8 @@ router.get('/commissions', authMiddleware, async (req, res) => {
       .select('*, customers(name, phone), vehicles(name, plate)')
       .eq('status', 'completed')
       .eq('is_outsourced', true)
-      .order('end_date', { ascending: false });
+      .order('end_date', { ascending: false })
+      .limit(MAX_ROWS);
 
     if (from)      query = query.gte('end_date', from as string);
     if (to)        query = query.lte('end_date', `${to}T23:59:59`);
@@ -130,7 +132,8 @@ router.get('/bookings', authMiddleware, async (req, res) => {
       .from('bookings')
       .select('*, customers(name, phone), vehicles(name, plate)')
       .eq('status', 'completed')
-      .order('end_date', { ascending: false });
+      .order('end_date', { ascending: false })
+      .limit(MAX_ROWS);
 
     if (from)      query = query.gte('end_date', from as string);
     if (to)        query = query.lte('end_date', `${to}T23:59:59`);
@@ -168,7 +171,8 @@ router.get('/vehicles', authMiddleware, async (req, res) => {
     let vQuery = supabase
       .from('vehicles')
       .select('id, name, plate, is_outsourced')
-      .order('name');
+      .order('name')
+      .limit(MAX_ROWS);
 
     if (vehicleId) vQuery = vQuery.eq('id', vehicleId as string);
 
@@ -178,7 +182,8 @@ router.get('/vehicles', authMiddleware, async (req, res) => {
     let bQuery = supabase
       .from('bookings')
       .select('vehicle_id, final_amount, driver_fee, commission_amount, total_km, is_outsourced, start_date, end_date')
-      .eq('status', 'completed');
+      .eq('status', 'completed')
+      .limit(MAX_ROWS);
 
     if (from)      bQuery = bQuery.gte('end_date', from as string);
     if (to)        bQuery = bQuery.lte('end_date', `${to}T23:59:59`);

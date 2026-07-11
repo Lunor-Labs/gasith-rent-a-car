@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { supabase } from '../config/supabase';
+import { supabase, MAX_ROWS } from '../config/supabase';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { format } from 'date-fns';
 
@@ -8,13 +8,12 @@ const router = Router();
 // GET all bookings
 router.get('/', authMiddleware, async (req, res) => {
   try {
-    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
-    let query = supabase
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : MAX_ROWS;
+    const query = supabase
       .from('bookings')
       .select('*')
-      .order('created_at', { ascending: false });
-
-    if (limit) query = query.limit(limit);
+      .order('created_at', { ascending: false })
+      .limit(limit);
 
     const { data, error } = await query;
     if (error) throw error;
@@ -65,7 +64,8 @@ router.get('/stats/revenue', authMiddleware, async (req, res) => {
         .from('bookings')
         .select('end_date, final_amount, driver_fee, commission_amount, is_outsourced')
         .eq('status', 'completed')
-        .gte('end_date', fromStr);
+        .gte('end_date', fromStr)
+        .limit(MAX_ROWS);
 
       if (error) throw error;
 

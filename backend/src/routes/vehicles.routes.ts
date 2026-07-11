@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { supabase, STORAGE_BUCKET } from '../config/supabase';
+import { supabase, STORAGE_BUCKET, MAX_ROWS } from '../config/supabase';
 import { authMiddleware } from '../middleware/auth.middleware';
 import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
@@ -10,13 +10,12 @@ const upload = multer({ storage: multer.memoryStorage() });
 // GET all vehicles (public - for landing page filtering)
 router.get('/', async (req, res) => {
   try {
-    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
-    let query = supabase
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : MAX_ROWS;
+    const query = supabase
       .from('vehicles')
       .select('*')
-      .order('created_at', { ascending: false });
-
-    if (limit) query = query.limit(limit);
+      .order('created_at', { ascending: false })
+      .limit(limit);
 
     const { data, error } = await query;
     if (error) throw error;
@@ -34,7 +33,8 @@ router.get('/landing', async (_, res) => {
       .from('vehicles')
       .select('*')
       .eq('show_on_landing', true)
-      .eq('is_active', true);
+      .eq('is_active', true)
+      .limit(MAX_ROWS);
 
     if (error) throw error;
     res.json((data || []).map(mapVehicleToResponse));

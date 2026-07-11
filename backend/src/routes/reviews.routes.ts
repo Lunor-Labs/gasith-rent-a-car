@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import axios from 'axios';
-import { supabase } from '../config/supabase';
+import { supabase, MAX_ROWS } from '../config/supabase';
 import { authMiddleware } from '../middleware/auth.middleware';
 
 const router = Router();
@@ -12,7 +12,8 @@ router.get('/public', async (_req, res) => {
       .from('reviews')
       .select('*')
       .eq('show_on_homepage', true)
-      .order('time', { ascending: false });
+      .order('time', { ascending: false })
+      .limit(MAX_ROWS);
 
     if (error) throw error;
     res.json(data || []);
@@ -27,7 +28,8 @@ router.get('/', authMiddleware, async (_req, res) => {
     const { data, error } = await supabase
       .from('reviews')
       .select('*')
-      .order('time', { ascending: false });
+      .order('time', { ascending: false })
+      .limit(MAX_ROWS);
 
     if (error) throw error;
     res.json(data || []);

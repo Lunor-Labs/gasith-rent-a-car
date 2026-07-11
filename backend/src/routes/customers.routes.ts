@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { supabase, STORAGE_BUCKET } from '../config/supabase';
+import { supabase, STORAGE_BUCKET, MAX_ROWS } from '../config/supabase';
 import { authMiddleware } from '../middleware/auth.middleware';
 import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
@@ -16,7 +16,7 @@ const docFields = upload.fields([
 // GET all customers — pass ?include_inactive=true to include deactivated records
 router.get('/', authMiddleware, async (req, res) => {
   try {
-    let query = supabase.from('customers').select('*').order('created_at', { ascending: false });
+    let query = supabase.from('customers').select('*').order('created_at', { ascending: false }).limit(MAX_ROWS);
     if (req.query.include_inactive !== 'true') query = query.eq('is_active', true);
 
     const { data, error } = await query;
@@ -161,7 +161,8 @@ router.get('/:id/bookings', authMiddleware, async (req, res) => {
       .from('bookings')
       .select('*')
       .eq('customer_id', req.params.id)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(MAX_ROWS);
 
     if (error) throw error;
     res.json((data || []).map(mapBookingToResponse));

@@ -33,4 +33,9 @@ export const supabase = createClient(supabaseUrl, supabaseServiceKey, {
 // Storage bucket name (single bucket with folder prefixes)
 export const STORAGE_BUCKET = 'uploads';
 
+// Ceiling for multi-row selects. Supabase/PostgREST silently caps result
+// sets at 1000 rows by default; every list/report query must pass this
+// (or an explicit smaller limit) so nothing is truncated silently.
+export const MAX_ROWS = 100000;
+
 export default supabase;
