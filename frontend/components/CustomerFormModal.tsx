@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import { Users, Phone, Mail, CreditCard, MapPin, FileText, ScanLine, Upload, UserPlus } from 'lucide-react';
 
 type Customer = {
-  id: string; name: string; phone: string; email: string;
+  id: string; name: string; nickname?: string; phone: string; email: string;
   address: string; nicNumber: string;
   nicFrontUrl: string; nicBackUrl: string; drivingLicenseUrl: string;
 };
@@ -17,7 +17,7 @@ type Props = {
   editing?: Customer | null;
 };
 
-const EMPTY = { name: '', phone: '', email: '', address: '', nicNumber: '' };
+const EMPTY = { name: '', nickname: '', phone: '', email: '', address: '', nicNumber: '' };
 
 export default function CustomerFormModal({ open, onClose, onSaved, editing = null }: Props) {
   const [form, setForm] = useState<any>({ ...EMPTY });
@@ -30,7 +30,7 @@ export default function CustomerFormModal({ open, onClose, onSaved, editing = nu
 
   const handleOpen = () => {
     if (editing) {
-      setForm({ name: editing.name, phone: editing.phone, email: editing.email, address: editing.address, nicNumber: editing.nicNumber });
+      setForm({ name: editing.name, nickname: editing.nickname || '', phone: editing.phone, email: editing.email, address: editing.address, nicNumber: editing.nicNumber });
     } else {
       setForm({ ...EMPTY });
     }
@@ -96,6 +96,13 @@ export default function CustomerFormModal({ open, onClose, onSaved, editing = nu
                 <div style={{ position: 'relative' }}>
                   <Users size={13} strokeWidth={1.5} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
                   <input className="form-input" placeholder="John Perera" style={{ paddingLeft: '2.25rem' }} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
+                </div>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Nickname</label>
+                <div style={{ position: 'relative' }}>
+                  <Users size={13} strokeWidth={1.5} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+                  <input className="form-input" placeholder="Johnny" style={{ paddingLeft: '2.25rem' }} value={form.nickname} onChange={e => setForm({ ...form, nickname: e.target.value })} />
                 </div>
               </div>
               <div className="form-group">

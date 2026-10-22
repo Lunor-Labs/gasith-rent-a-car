@@ -46,7 +46,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
 // POST create customer
 router.post('/', authMiddleware, docFields, async (req, res) => {
   try {
-    const { name, phone, email, address, nicNumber } = req.body;
+    const { name, nickname, phone, email, address, nicNumber } = req.body;
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
 
     const [nicFrontUrl, nicBackUrl, drivingLicenseUrl] = await Promise.all([
@@ -59,6 +59,7 @@ router.post('/', authMiddleware, docFields, async (req, res) => {
       .from('customers')
       .insert({
         name,
+        nickname: nickname?.trim() || null,
         phone,
         email,
         address,
@@ -80,9 +81,9 @@ router.post('/', authMiddleware, docFields, async (req, res) => {
 // PUT update customer
 router.put('/:id', authMiddleware, docFields, async (req, res) => {
   try {
-    const { name, phone, email, address, nicNumber } = req.body;
+    const { name, nickname, phone, email, address, nicNumber } = req.body;
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-    const updateData: any = { name, phone, email, address, nic_number: nicNumber };
+    const updateData: any = { name, nickname: nickname?.trim() || null, phone, email, address, nic_number: nicNumber };
 
     const [nicFrontUrl, nicBackUrl, drivingLicenseUrl] = await Promise.all([
       uploadDoc(files, 'nicFront'),
@@ -197,6 +198,7 @@ function mapCustomerToResponse(c: any) {
   return {
     id: c.id,
     name: c.name,
+    nickname: c.nickname ?? '',
     phone: c.phone,
     email: c.email,
     address: c.address,

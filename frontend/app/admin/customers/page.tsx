@@ -7,7 +7,7 @@ import { Plus, Pencil, Trash2, Users, Eye, Wallet } from 'lucide-react';
 import CustomerFormModal from '@/components/CustomerFormModal';
 import CreditAccountModal from '@/components/CreditAccountModal';
 
-type Customer = { id: string; name: string; phone: string; email: string; address: string; nicNumber: string; nicFrontUrl: string; nicBackUrl: string; drivingLicenseUrl: string; isActive?: boolean; isBlacklisted?: boolean; blacklistReason?: string; createdAt: any; };
+type Customer = { id: string; name: string; nickname?: string; phone: string; email: string; address: string; nicNumber: string; nicFrontUrl: string; nicBackUrl: string; drivingLicenseUrl: string; isActive?: boolean; isBlacklisted?: boolean; blacklistReason?: string; createdAt: any; };
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -47,7 +47,7 @@ export default function CustomersPage() {
   };
 
   const filtered = q
-    ? customers.filter(c => c.name.toLowerCase().includes(q) || c.phone?.toLowerCase().includes(q) || c.email?.toLowerCase().includes(q) || c.nicNumber?.toLowerCase().includes(q))
+    ? customers.filter(c => c.name.toLowerCase().includes(q) || c.nickname?.toLowerCase().includes(q) || c.phone?.toLowerCase().includes(q) || c.email?.toLowerCase().includes(q) || c.nicNumber?.toLowerCase().includes(q))
     : customers;
 
   const fmtDate = (ts: any) => {
@@ -93,7 +93,7 @@ export default function CustomersPage() {
             <table>
               <thead>
                 <tr>
-                  <th>Name</th><th>Phone</th><th>NIC</th><th>Documents</th><th>Joined</th><th>Actions</th>
+                  <th>Name</th><th>Nickname</th><th>Phone</th><th>NIC</th><th>Documents</th><th>Joined</th><th>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -107,6 +107,7 @@ export default function CustomersPage() {
                       </div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{c.email}</div>
                     </td>
+                    <td>{c.nickname || <span style={{ color: 'var(--text-muted)' }}>—</span>}</td>
                     <td>{c.phone}</td>
                     <td><code style={{ fontSize: '0.78rem' }}>{c.nicNumber || '—'}</code></td>
                     <td>
@@ -148,6 +149,7 @@ export default function CustomersPage() {
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                       <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{c.name}</span>
+                      {c.nickname && <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>({c.nickname})</span>}
                       {c.isActive === false && <span className="badge badge-muted" style={{ fontSize: '0.62rem' }}>Inactive</span>}
                       {c.isBlacklisted && <span className="badge badge-danger" style={{ fontSize: '0.62rem' }}>Blacklisted</span>}
                     </div>
@@ -205,7 +207,7 @@ export default function CustomersPage() {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
               <div className="grid-2" style={{ fontSize: '0.88rem' }}>
-                {[['Phone', detailOpen.phone], ['Email', detailOpen.email || '—'], ['NIC', detailOpen.nicNumber || '—'], ['Address', detailOpen.address || '—']].map(([l, v]) => (
+                {[['Nickname', detailOpen.nickname || '—'], ['Phone', detailOpen.phone],['Email', detailOpen.email || '—'], ['NIC', detailOpen.nicNumber || '—'], ['Address', detailOpen.address || '—']].map(([l, v]) => (
                   <div key={l}>
                     <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: 2 }}>{l}</span>
                     <span style={{ fontWeight: 600 }}>{v}</span>

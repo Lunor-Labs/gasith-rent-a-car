@@ -27,6 +27,7 @@ CREATE TABLE vehicles (
 CREATE TABLE customers (
   id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name              TEXT NOT NULL,
+  nickname          TEXT,
   phone             TEXT,
   email             TEXT,
   address           TEXT,
