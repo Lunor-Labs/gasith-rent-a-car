@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { ChevronDown, AlertTriangle } from 'lucide-react';
 
-type Customer = { id: string; name: string; phone: string; isBlacklisted?: boolean; blacklistReason?: string };
+type Customer = { id: string; name: string; nickname?: string; phone: string; isBlacklisted?: boolean; blacklistReason?: string };
 
 interface SearchableCustomerSelectProps {
   customers: Customer[];
@@ -29,6 +29,7 @@ export default function SearchableCustomerSelect({
 
   const filteredCustomers = customers.filter(c =>
     c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    c.nickname?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     c.phone?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -136,7 +137,7 @@ export default function SearchableCustomerSelect({
             <input
               ref={inputRef}
               type="text"
-              placeholder="Search by name or phone..."
+              placeholder="Search by name, nickname or phone..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               className="form-input"
@@ -190,6 +191,7 @@ export default function SearchableCustomerSelect({
                     <div style={{ fontWeight: selectedId === customer.id ? 600 : 500, fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                       {customer.isBlacklisted && <AlertTriangle size={11} strokeWidth={1.5} style={{ color: '#ef4444', flexShrink: 0 }} />}
                       {customer.name}
+                      {customer.nickname && <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 400 }}>({customer.nickname})</span>}
                     </div>
                     <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>{customer.phone}</div>
                   </div>
